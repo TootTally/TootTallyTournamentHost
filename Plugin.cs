@@ -140,7 +140,7 @@ namespace TootTallyTournamentHost
                 }
                 LeanTween.init(LeanTween.maxTweens * (int)verticalScreenCount * (int)horizontalScreenCount);
                 botLeftCam.enabled = false;
-                __instance.pointer.SetActive(false);
+                __instance.pointer.transform.localScale = Vector2.zero;
                 __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
             }
 
