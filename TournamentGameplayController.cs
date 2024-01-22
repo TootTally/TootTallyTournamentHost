@@ -64,7 +64,14 @@ namespace TootTallyTournamentHost
             GameObjectFactory.DestroyFromParent(_UIHolder, "PracticeMode");
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
 
-            DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
+            try
+            {
+                DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
+            }
+            catch (Exception e)
+            {
+                Plugin.LogInfo("PercentCounterNotFound");
+            }
 
             _UIScoreShadow = _UIHolder.transform.Find("upper_right/ScoreShadow").GetComponent<Text>();
             _UIScore = _UIScoreShadow.transform.Find("Score").GetComponent<Text>();

@@ -16,6 +16,7 @@ namespace TootTallyTournamentHost
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInDependency("TootTallySpectator", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("TootTallyMultiplayer", BepInDependency.DependencyFlags.HardDependency)]
     public class Plugin : BaseUnityPlugin, ITootTallyModule
     {
         public static Plugin Instance;
@@ -62,8 +63,7 @@ namespace TootTallyTournamentHost
             settingPage?.AddSlider("Hori Screens", 1, 10, HorizontalScreenCount, true);
             settingPage?.AddSlider("Vert Screens", 1, 10, VerticalScreenCount, true);
             settingPage?.AddLabel("UserIDs");
-            settingPage?.AddTextField("UserIDs", UserIDs.Value, false, text => UserIDs.Value = text);
-
+            settingPage?.AddTextField("UserIDs", UserIDs.Value, false, value => UserIDs.Value = value);
             _harmony.PatchAll(typeof(TournamentHostPatches));
             LogInfo($"Module loaded!");
         }
@@ -172,6 +172,7 @@ namespace TootTallyTournamentHost
             public static void DisconnectAllClients()
             {
                 _tournamentControllerList.ForEach(tc => tc.Disconnect());
+                _tournamentControllerList.Clear();
             }
 
             private static bool _waitingToSync;
