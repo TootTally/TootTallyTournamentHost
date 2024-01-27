@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net472</TargetFramework>
+		<TargetFramework>net48</TargetFramework>
 		<AssemblyName>TootTallyTournamentHost</AssemblyName>
 		<Description>Tournament host client for TootTally</Description>
 		<Version>1.0.1</Version>
@@ -40,6 +40,12 @@
 		</Reference>
 		<Reference Include="TootTallyWebsocketLibs">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyMultiplayer\TootTallyMultiplayer.dll</HintPath>
+		</Reference>
+		<Reference Include="TootTallyLeaderboard">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyLeaderboard\TootTallyLeaderboard.dll</HintPath>
+		</Reference>
+		<Reference Include="HighscoreAccuracy">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\emmett-HighscoreAccuracy\HighscoreAccuracy.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 

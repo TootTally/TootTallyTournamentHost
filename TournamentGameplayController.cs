@@ -19,6 +19,7 @@ namespace TootTallyTournamentHost
         private Rect _bounds;
         private SpectatingSystem _spectatingSystem;
         private GameObject _pointer;
+        private RectTransform _pointerRect;
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
@@ -83,8 +84,7 @@ namespace TootTallyTournamentHost
             _multiHideTimer = -1f;
 
             _pointer = GameObject.Instantiate(gcInstance.pointer, _container.transform);
-            var pRect = _pointer.GetComponent<RectTransform>();
-            pRect.anchoredPosition = new Vector2(28, 0);
+            _pointerRect = _pointer.GetComponent<RectTransform>();
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
             _frameIndex = 0;
             _tootIndex = 0;
@@ -257,7 +257,7 @@ namespace TootTallyTournamentHost
 
         private void SetCursorPosition(float newPosition)
         {
-            _pointer.GetComponent<RectTransform>().anchoredPosition = new Vector2(28, newPosition);
+            _pointerRect.anchoredPosition = new Vector2(_pointerRect.sizeDelta.x - 5, newPosition);
         }
 
         private float _currentVolume;

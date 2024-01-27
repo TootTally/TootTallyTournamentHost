@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallyCore.Utils.TootTallyNotifs;
+using TootTallyLeaderboard.Replays;
+using TootTallyMultiplayer;
 using TootTallySettings;
 using TootTallySpectator;
 using UnityEngine;
@@ -16,7 +18,7 @@ namespace TootTallyTournamentHost
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInDependency("TootTallySpectator", BepInDependency.DependencyFlags.HardDependency)]
-    [BepInDependency("TootTallyMultiplayer", BepInDependency.DependencyFlags.HardDependency)]
+    //[BepInDependency("com.hypersonicsharkz.highscoreaccuracy", BepInDependency.DependencyFlags.HardDependency)]
     public class Plugin : BaseUnityPlugin, ITootTallyModule
     {
         public static Plugin Instance;
@@ -55,9 +57,9 @@ namespace TootTallyTournamentHost
         {
             string configPath = Path.Combine(Paths.BepInExRootPath, "config/");
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
-            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 4f, "Amount of screen displayed horizontally");
+            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally");
             VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically");
-            UserIDs = config.Bind("Global", "UserIDs", "0,0,0;0,0,0", "List of user IDs to spectate");
+            UserIDs = config.Bind("Global", "UserIDs", "70,70;70,70", "List of user IDs to spectate");
 
             settingPage = TootTallySettingsManager.AddNewPage("TournamentHost", "Tournament Host", 40f, new Color(0, 0, 0, 0));
             settingPage?.AddSlider("Hori Screens", 1, 10, HorizontalScreenCount, true);
@@ -83,6 +85,7 @@ namespace TootTallyTournamentHost
             [HarmonyPostfix]
             public static void OnGameControllerStart(GameController __instance)
             {
+                SpectatingManager.StopAllSpectator();
                 _tournamentControllerList?.Clear();
                 _screenSize = new Vector2(Screen.width, Screen.height);
                 float horizontalScreenCount = (int)Instance.HorizontalScreenCount.Value;
@@ -167,13 +170,16 @@ namespace TootTallyTournamentHost
                 _tournamentControllerList.ForEach(tc => tc.CopyAllAudioClips());
             }
 
-            [HarmonyPatch(typeof(LevelSelectController), nameof(LevelSelectController.Start))]
+            [HarmonyPatch(typeof(PlaytestAnims), nameof(PlaytestAnims.Start))]
+            [HarmonyPatch(typeof(PointSceneController), nameof(PointSceneController.Start))]
             [HarmonyPostfix]
             public static void DisconnectAllClients()
             {
-                _tournamentControllerList.ForEach(tc => tc.Disconnect());
-                _tournamentControllerList.Clear();
+                _tournamentControllerList?.ForEach(tc => tc.Disconnect());
+                _tournamentControllerList?.Clear();
             }
+
+
 
             private static bool _waitingToSync;
 
@@ -193,6 +199,17 @@ namespace TootTallyTournamentHost
             {
                 if (_waitingToSync && __instance.curtainc.doneanimating && !ShouldWaitForSync(out _waitingToSync))
                     __instance.startSong(false);
+            }
+
+            [HarmonyPatch(typeof(MultiplayerSystem), nameof(MultiplayerSystem.SendUpdateScore))]
+            [HarmonyPrefix]
+            public static bool OnUpdatePlaybackSpectatingData() => false;
+
+            [HarmonyPatch(typeof(ReplaySystemManager), nameof(ReplaySystemManager.ShouldSubmitReplay))]
+            [HarmonyPrefix]
+            public static void OverwriteShouldSubmitReplay(ref bool __result)
+            {
+                __result = false;
             }
 
             private static bool ShouldWaitForSync(out bool waitForSync)
