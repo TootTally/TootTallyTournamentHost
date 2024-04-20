@@ -81,6 +81,7 @@ namespace TootTallyTournamentHost
         {
             private static Vector2 _screenSize;
             private static List<TournamentGameplayController> _tournamentControllerList = new List<TournamentGameplayController>();
+
             [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
             [HarmonyPostfix]
             public static void OnGameControllerStart(GameController __instance)
@@ -114,7 +115,7 @@ namespace TootTallyTournamentHost
                 gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
 
                 var IDs = Instance.UserIDs.Value.Split(';');
-                string[][] idList = new string[IDs.Length][];
+                string[][] idList = new string[IDs.Length][]; //????
                 for (int i = 0; i < IDs.Length; i++)
                     idList[i] = IDs[i].Split(',');
                 /*
@@ -198,7 +199,11 @@ namespace TootTallyTournamentHost
             public static void OnUpdatePlaybackSpectatingData(GameController __instance)
             {
                 if (_waitingToSync && __instance.curtainc.doneanimating && !ShouldWaitForSync(out _waitingToSync))
+                {
+                    if (MultiplayerManager.IsPlayingMultiplayer)
+                        MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
                     __instance.startSong(false);
+                }
             }
 
             [HarmonyPatch(typeof(MultiplayerSystem), nameof(MultiplayerSystem.SendUpdateScore))]

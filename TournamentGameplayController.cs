@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TootTallyCore.Graphics;
 using TootTallyCore.Utils.Helpers;
+using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,6 +24,8 @@ namespace TootTallyTournamentHost
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
+        private GameObject _champCanvas, _champPanel;
+        private static bool _hasSentSecondFlag, _hasSentFirstFlag;
         //private PercentCounter _percentCounter;
 
         public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
@@ -31,6 +34,7 @@ namespace TootTallyTournamentHost
 
         public void Initialize(GameController gcInstance, Camera camera, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem)
         {
+            _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
             _camera = camera;
             _bounds = bounds;
@@ -51,7 +55,7 @@ namespace TootTallyTournamentHost
             _noGapRect = _noGapObject.GetComponent<RectTransform>();
 
             _popupTextShadow = GameObject.Instantiate(_gcInstance.popuptextshadow, _container.transform);
-            _popupText = _popupTextShadow.transform.Find("Text top").GetComponent<Text>();
+            _popupText = _popupTextShadow.transform.Find("txt_perfecto_popup-top").GetComponent<Text>();
             _popupTextObject = _popupTextShadow.gameObject;
             _popupTextRect = _popupTextObject.GetComponent<RectTransform>();
 
@@ -61,6 +65,29 @@ namespace TootTallyTournamentHost
             _multiplierTextRect = _multiplierTextObject.GetComponent<RectTransform>();
 
             _UIHolder = GameObject.Instantiate(_gcInstance.ui_score_shadow.transform.parent.parent.gameObject, _container.transform);
+
+            //Probably better to rewrite this in some way
+            _champCanvas = GameObject.Instantiate(_gcInstance.champcontroller.transform.parent, _container.transform).gameObject;
+            _champGUIController = _champCanvas.transform.GetChild(0).GetComponent<ChampGUIController>();
+            _champPanel = _champCanvas.transform.GetChild(1).gameObject;
+            _champPanel.transform.SetParent(_container.transform);
+            _champPanel.transform.localScale = Vector3.one * .75f;
+            var champRect = _champPanel.GetComponent<RectTransform>();
+            champRect.anchorMin = champRect.anchorMax = new Vector2(.06f, .9f);
+            champRect.anchoredPosition = Vector2.zero;
+            var champParent = _champPanel.transform.GetChild(0);
+            var champParentRect = champParent.GetComponent<RectTransform>();
+            champParentRect.anchorMin = champParentRect.anchorMax = Vector2.one / 2f;
+            champParentRect.anchoredPosition = Vector2.zero;
+
+            for (int i = 0; i < _champGUIController.letters.Length; i++)
+                _champGUIController.letters[i] = _champPanel.transform.GetChild(0).GetChild(i).gameObject;
+            for (int i = 0; i < _champGUIController.champlvl.Length; i+=2)
+            {
+                _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
+                _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
+            }
+
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed");
             GameObjectFactory.DestroyFromParent(_UIHolder, "PracticeMode");
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
@@ -88,9 +115,10 @@ namespace TootTallyTournamentHost
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
             _frameIndex = 0;
             _tootIndex = 0;
-            _lastFrame = null;
-            _currentFrame = new SocketFrameData() { time = 0, noteHolder = 0, pointerPosition = 0 };
-            _currentTootData = new SocketTootData() { time = 0, isTooting = false, noteHolder = 0 };
+            _lastFrame.time = -1;
+            _currentNoteData.noteID = -1;
+            _currentFrame = new SocketFrameData() { time = -1, noteHolder = 0, pointerPosition = 0 };
+            _currentTootData = new SocketTootData() { time = -1, isTooting = false, noteHolder = 0 };
             _isTooting = false;
 
 
@@ -138,9 +166,15 @@ namespace TootTallyTournamentHost
 
         public void OnGetScoreAverage()
         {
+            if (!_hasSentSecondFlag)
+            {
+                MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
+                _hasSentSecondFlag = true;
+            }
+
             if (_noteData != null && _noteData.Count > 0 && _noteData.Last().noteID > _gcInstance.currentnoteindex)
                 _currentNoteData = _noteData.Find(x => x.noteID == _gcInstance.currentnoteindex);
-            if (_currentNoteData != null)
+            if (_currentNoteData.noteID != -1)
             {
                 _champMode = _currentNoteData.champMode;
                 _multiplier = _currentNoteData.multiplier;
@@ -150,7 +184,7 @@ namespace TootTallyTournamentHost
                 _currentHealth = _currentNoteData.health;
                 if (_highestcombo < _currentNoteData.highestCombo)
                     updateHighestCombo(_currentNoteData.highestCombo);
-                _currentNoteData = null;
+                _currentNoteData.noteID = -1;
             }
             getScoreAverage();
         }
@@ -186,6 +220,12 @@ namespace TootTallyTournamentHost
 
         private void OnNoteDataReceived(SocketNoteData noteData)
         {
+            if (!_hasSentFirstFlag)
+            {
+                MultiplayerManager.GetMultiplayerController.SendQuickChat(6969);
+                _hasSentFirstFlag = true;
+            }
+
             _noteData.Add(noteData);
         }
 
@@ -201,12 +241,8 @@ namespace TootTallyTournamentHost
             if (_tootData.Count > 0)
                 PlaybackTootData(currentMapPosition);
 
-            if (_frameData.Count > _frameIndex && _lastFrame != null && _currentFrame != null)
+            if (_frameData.Count > _frameIndex)
                 InterpolateCursorPosition(currentMapPosition);
-            else if (_currentFrame != null && _frameData.Count < _frameIndex)
-                SetCursorPosition(_currentFrame.pointerPosition);
-
-
         }
 
         private void InterpolateCursorPosition(float currentMapPosition)
@@ -216,14 +252,16 @@ namespace TootTallyTournamentHost
                 var newCursorPosition = EasingHelper.Lerp(_lastFrame.pointerPosition, _currentFrame.pointerPosition, (float)((currentMapPosition - _lastFrame.time) / (_currentFrame.time - _lastFrame.time)));
                 SetCursorPosition(newCursorPosition);
             }
+            else
+                SetCursorPosition(_currentFrame.pointerPosition);
         }
 
         private void PlaybackFrameData(float currentMapPosition)
         {
-            if (_lastFrame != _currentFrame && currentMapPosition >= _currentFrame.time)
+            if (_lastFrame.time != _currentFrame.time && currentMapPosition >= _currentFrame.time)
                 _lastFrame = _currentFrame;
 
-            if (_frameData.Count > _frameIndex && (_currentFrame == null || currentMapPosition >= _currentFrame.time))
+            if (_frameData.Count > _frameIndex && (_currentFrame.time == -1 || currentMapPosition >= _currentFrame.time))
             {
                 _frameIndex = _frameData.FindIndex(_frameIndex > 1 ? _frameIndex - 1 : 0, x => currentMapPosition < x.time);
                 if (_frameData.Count > _frameIndex && _frameIndex != -1)
@@ -257,7 +295,7 @@ namespace TootTallyTournamentHost
 
         private void SetCursorPosition(float newPosition)
         {
-            _pointerRect.anchoredPosition = new Vector2(_pointerRect.sizeDelta.x - 5, newPosition);
+            _pointerRect.anchoredPosition = new Vector2(_pointerRect.sizeDelta.x, newPosition);
         }
 
         private float _currentVolume;
@@ -403,7 +441,10 @@ namespace TootTallyTournamentHost
 
         private void getScoreAverage()
         {
-            affectHealthBar(1/*TODO*/);
+            if (!_releaseBetweenNotes)
+                affectHealthBar(-15f);
+            else
+                affectHealthBar(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
             if (_noteScoreAverage > 95f)
             {
                 doScoreText(4);
@@ -444,15 +485,14 @@ namespace TootTallyTournamentHost
                 _currentHealth = 100f;
             else if (_currentHealth < 0f)
                 _currentHealth = 0f;
-            //TODO
-            /*int num = Mathf.FloorToInt(_currentHealth * 0.1f) - _champGUIController.healthcounter;
+            int num = Mathf.FloorToInt(_currentHealth * 0.1f) - _champGUIController.healthcounter;
             for (int i = 0; i < Mathf.Abs(num); i++)
             {
                 if (num > 0)
                     _champGUIController.advanceCounter(1);
                 else if (num < 0)
                     _champGUIController.advanceCounter(-1);
-            }*/
+            }
         }
 
         private void hideMultText()
