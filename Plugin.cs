@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallyCore.Utils.TootTallyNotifs;
+using TootTallyGameModifiers;
 using TootTallyLeaderboard.Replays;
 using TootTallyMultiplayer;
 using TootTallySettings;
@@ -18,6 +19,8 @@ namespace TootTallyTournamentHost
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInDependency("TootTallySpectator", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("TootTallyLeaderboard", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("TootTallyMultiplayer", BepInDependency.DependencyFlags.HardDependency)]
     //[BepInDependency("com.hypersonicsharkz.highscoreaccuracy", BepInDependency.DependencyFlags.HardDependency)]
     public class Plugin : BaseUnityPlugin, ITootTallyModule
     {
@@ -168,7 +171,7 @@ namespace TootTallyTournamentHost
             [HarmonyPrefix]
             public static void CopyAllAudioClips()
             {
-                _tournamentControllerList.ForEach(tc => tc.CopyAllAudioClips());
+                _tournamentControllerList?.ForEach(tc => tc.CopyAllAudioClips());
             }
 
             [HarmonyPatch(typeof(PlaytestAnims), nameof(PlaytestAnims.Start))]
@@ -181,6 +184,21 @@ namespace TootTallyTournamentHost
             }
 
 
+            [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Initialize))]
+            [HarmonyPrefix]
+            public static bool InitFlashlight()
+            {
+                _tournamentControllerList?.ForEach(tc => tc.InitFlashLight());
+                return false;
+            }
+
+            [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Update))]
+            [HarmonyPrefix]
+            public static bool UpdateFlashlight()
+            {
+                _tournamentControllerList?.ForEach(tc => tc.UpdateFlashLight());
+                return false;
+            }
 
             private static bool _waitingToSync;
 

@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using TootTallyCore.Graphics;
 using TootTallyCore.Utils.Helpers;
+using TootTallyGameModifiers;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
+using UnityEngine.PostProcessing;
 using UnityEngine.UI;
 using static TootTallySpectator.SpectatingManager;
 
@@ -17,6 +20,7 @@ namespace TootTallyTournamentHost
         private GameObject _container;
         private Canvas _canvas;
         private Camera _camera;
+        private PostProcessingBehaviour _pppEffects;
         private Rect _bounds;
         private SpectatingSystem _spectatingSystem;
         private GameObject _pointer;
@@ -37,6 +41,7 @@ namespace TootTallyTournamentHost
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
             _camera = camera;
+            _pppEffects = _camera.GetComponent<PostProcessingBehaviour>();
             _bounds = bounds;
             camera.pixelRect = bounds;
             _spectatingSystem = spectatingSystem;
@@ -50,6 +55,7 @@ namespace TootTallyTournamentHost
             SetAllNoteEndEffects();
 
             _maxStarObject = GameObject.Instantiate(_gcInstance.max_star_gameobject, _container.transform);
+            _maxStarRect = _maxStarObject.GetComponent<RectTransform>();
 
             _noGapObject = GameObject.Instantiate(_gcInstance.no_gap_gameobject, _container.transform);
             _noGapRect = _noGapObject.GetComponent<RectTransform>();
@@ -58,6 +64,9 @@ namespace TootTallyTournamentHost
             _popupText = _popupTextShadow.transform.Find("txt_perfecto_popup-top").GetComponent<Text>();
             _popupTextObject = _popupTextShadow.gameObject;
             _popupTextRect = _popupTextObject.GetComponent<RectTransform>();
+            _popupTextRect.anchorMin = _popupTextRect.anchorMax =
+            _noGapRect.anchorMin = _noGapRect.anchorMax =
+            _maxStarRect.anchorMin = _maxStarRect.anchorMax = new Vector2(.3f, .5f);
 
             _multiplierTextShadow = GameObject.Instantiate(_gcInstance.multtextshadow, _container.transform);
             _multiplierText = _multiplierTextShadow.transform.Find("Text top").GetComponent<Text>();
@@ -82,7 +91,7 @@ namespace TootTallyTournamentHost
 
             for (int i = 0; i < _champGUIController.letters.Length; i++)
                 _champGUIController.letters[i] = _champPanel.transform.GetChild(0).GetChild(i).gameObject;
-            for (int i = 0; i < _champGUIController.champlvl.Length; i+=2)
+            for (int i = 0; i < _champGUIController.champlvl.Length; i += 2)
             {
                 _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
                 _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
@@ -120,9 +129,35 @@ namespace TootTallyTournamentHost
             _currentFrame = new SocketFrameData() { time = -1, noteHolder = 0, pointerPosition = 0 };
             _currentTootData = new SocketTootData() { time = -1, isTooting = false, noteHolder = 0 };
             _isTooting = false;
+        }
 
+        private VignetteModel.Settings _settings;
+        private Vector2 _pointerPos;
+        private Color _color;
 
+        public void InitFlashLight()
+        {
+            _pppEffects.profile.vignette.enabled = true;
+            _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
+            _color = new Color(.3f, .3f, .3f, 1);
+            _settings = new VignetteModel.Settings()
+            {
+                center = _pointerPos,
+                color = _color,
+                intensity = .8f,
+                mode = VignetteModel.Mode.Classic,
+                rounded = true,
+                roundness = 1,
+                smoothness = 1,
+            };
+        }
 
+        public void UpdateFlashLight()
+        {
+            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
+            _settings.center = _pointerPos;
+            _settings.color = _color;
+            _pppEffects.profile.vignette.settings = _settings;
         }
 
         private void SetAllNoteEndEffects()
@@ -365,7 +400,7 @@ namespace TootTallyTournamentHost
 
         private void HandlePitchShift()
         {
-            if (_tClips == null && _currentNoteSound == null) return;
+            if (_tClips == null || _currentNoteSound == null) return;
 
             var pointerPos = _pointer.GetComponent<RectTransform>().anchoredPosition.y;
 
@@ -402,6 +437,7 @@ namespace TootTallyTournamentHost
 
         private GameController.noteendeffect[] _allNoteEndEffects;
         private GameObject _maxStarObject;
+        private RectTransform _maxStarRect;
 
         private RectTransform _noGapRect;
         private GameObject _noGapObject;
