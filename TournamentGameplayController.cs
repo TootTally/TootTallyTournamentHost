@@ -18,7 +18,6 @@ namespace TootTallyTournamentHost
     {
         private GameController _gcInstance;
         private GameObject _container;
-        private Canvas _canvas;
         private Camera _camera;
         private PostProcessingBehaviour _pppEffects;
         private Rect _bounds;
