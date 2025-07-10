@@ -63,12 +63,16 @@ namespace TootTallyTournamentHost
             HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally");
             VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically");
             UserIDs = config.Bind("Global", "UserIDs", "70,70;70,70", "List of user IDs to spectate");
+            StartFade = config.Bind("Hidden", "StartFade", 3.5f, "Position at which the fade starts for hidden.");
+            EndFade = config.Bind("Hidden", "EndFade", -1.6f, "Position at which the fade ends for hidden.");
 
             settingPage = TootTallySettingsManager.AddNewPage("TournamentHost", "Tournament Host", 40f, new Color(0, 0, 0, 0));
             settingPage?.AddSlider("Hori Screens", 1, 10, HorizontalScreenCount, true);
             settingPage?.AddSlider("Vert Screens", 1, 10, VerticalScreenCount, true);
             settingPage?.AddLabel("UserIDs");
             settingPage?.AddTextField("UserIDs", UserIDs.Value, false, value => UserIDs.Value = value);
+            settingPage?.AddSlider("Start Fadeout", -25, 25, 500, "HD StartFade", StartFade, false);
+            settingPage?.AddSlider("End Fadeout", -25, 25, 500, "HD EndFade", EndFade, false);
             _harmony.PatchAll(typeof(TournamentHostPatches));
             LogInfo($"Module loaded!");
         }
@@ -183,6 +187,12 @@ namespace TootTallyTournamentHost
                 _tournamentControllerList?.Clear();
             }
 
+            [HarmonyPatch(typeof(GameModifiers.Hidden), nameof(GameModifiers.Hidden.Initialize))]
+            [HarmonyPrefix]
+            public static void InitHidden()
+            {
+                GameModifiers.Hidden.SetFadeOutValues(StartFade.Value, EndFade.Value);
+            }
 
             [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Initialize))]
             [HarmonyPrefix]
@@ -249,5 +259,6 @@ namespace TootTallyTournamentHost
         public ConfigEntry<float> HorizontalScreenCount { get; set; }
         public ConfigEntry<float> VerticalScreenCount { get; set; }
         public ConfigEntry<string> UserIDs { get; set; }
+        public static ConfigEntry<float> StartFade, EndFade;
     }
 }
