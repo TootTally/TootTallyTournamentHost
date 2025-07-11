@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using TootTallyCore.Graphics;
+using TootTallyCore.Graphics.Animations;
 using TootTallyCore.Utils.Helpers;
 using TootTallyGameModifiers;
 using TootTallyMultiplayer;
@@ -51,9 +52,10 @@ namespace TootTallyTournamentHost
 
             _noteParticles = GameObject.Instantiate(_gcInstance.noteparticles, _container.transform);
             _allNoteEndEffects = new GameController.noteendeffect[15];
+            _allNoteEndAnimations = new AnimateNoteEndEffectAnimations[15];
             SetAllNoteEndEffects();
 
-            _maxStarObject = GameObject.Instantiate(_gcInstance.max_star_gameobject, _container.transform);
+            /*_maxStarObject = GameObject.Instantiate(_gcInstance.max_star_gameobject, _container.transform);
             _maxStarRect = _maxStarObject.GetComponent<RectTransform>();
 
             _noGapObject = GameObject.Instantiate(_gcInstance.no_gap_gameobject, _container.transform);
@@ -70,7 +72,7 @@ namespace TootTallyTournamentHost
             _multiplierTextShadow = GameObject.Instantiate(_gcInstance.multtextshadow, _container.transform);
             _multiplierText = _multiplierTextShadow.transform.Find("Text top").GetComponent<Text>();
             _multiplierTextObject = _multiplierTextShadow.gameObject;
-            _multiplierTextRect = _multiplierTextObject.GetComponent<RectTransform>();
+            _multiplierTextRect = _multiplierTextObject.GetComponent<RectTransform>();*/
 
             _UIHolder = GameObject.Instantiate(_gcInstance.ui_score_shadow.transform.parent.parent.gameObject, _container.transform);
 
@@ -120,6 +122,7 @@ namespace TootTallyTournamentHost
 
             _pointer = GameObject.Instantiate(gcInstance.pointer, _container.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
+            _pointerRect.pivot = new Vector2(.58f, .5f);
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
             _frameIndex = 0;
             _tootIndex = 0;
@@ -138,7 +141,7 @@ namespace TootTallyTournamentHost
         {
             _pppEffects.profile.vignette.enabled = true;
             _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
-            _color = new Color(.3f, .3f, .3f, 1);
+            _color = new Color(.5f, .5f, .5f, 1);
             _settings = new VignetteModel.Settings()
             {
                 center = _pointerPos,
@@ -177,6 +180,7 @@ namespace TootTallyTournamentHost
                 noteendeffect.combotext_txt_front = gameObject.transform.GetChild(2).GetChild(0).GetComponent<Text>();
                 noteendeffect.combotext_txt_shadow = gameObject.transform.GetChild(2).GetComponent<Text>();
                 _allNoteEndEffects[i] = noteendeffect;
+                _allNoteEndAnimations[i] = new AnimateNoteEndEffectAnimations();
             }
         }
 
@@ -191,8 +195,11 @@ namespace TootTallyTournamentHost
         private void Update()
         {
             _spectatingSystem?.UpdateStacks();
-            HandlePitchShift();
-            PlaybackSpectatingData(_gcInstance);
+            if (!_gcInstance.freeplay && !_gcInstance.quitting && !_gcInstance.level_finished)
+            {
+                HandlePitchShift();
+                PlaybackSpectatingData(_gcInstance);
+            }
             UpdateMultiHideTimer();
         }
 
@@ -435,19 +442,20 @@ namespace TootTallyTournamentHost
         }
 
         private GameController.noteendeffect[] _allNoteEndEffects;
-        private GameObject _maxStarObject;
-        private RectTransform _maxStarRect;
+        private AnimateNoteEndEffectAnimations[] _allNoteEndAnimations;
+        //private GameObject _maxStarObject;
+        //private RectTransform _maxStarRect;
 
-        private RectTransform _noGapRect;
-        private GameObject _noGapObject;
+        //private RectTransform _noGapRect;
+        //private GameObject _noGapObject;
 
-        private GameObject _popupTextObject;
-        private RectTransform _popupTextRect;
-        private Text _popupText, _popupTextShadow;
+        //private GameObject _popupTextObject;
+        //private RectTransform _popupTextRect;
+        //private Text _popupText, _popupTextShadow;
 
-        private GameObject _multiplierTextObject;
-        private RectTransform _multiplierTextRect;
-        private Text _multiplierText, _multiplierTextShadow;
+        //private GameObject _multiplierTextObject;
+        //private RectTransform _multiplierTextRect;
+        //private Text _multiplierText, _multiplierTextShadow;
 
         private int _noteParticlesIndex;
 
@@ -532,7 +540,7 @@ namespace TootTallyTournamentHost
 
         private void hideMultText()
         {
-            LeanTween.cancel(_popupTextShadow.gameObject);
+            /*LeanTween.cancel(_popupTextShadow.gameObject);
             LeanTween.cancel(_multiplierTextShadow.gameObject);
             LeanTween.scale(_popupTextShadow.gameObject, new Vector3(0f, 1f, 1f), 0.09f).setEaseInQuart();
             LeanTween.scale(_multiplierTextShadow.gameObject, new Vector3(0f, 1f, 1f), 0.09f).setEaseInQuart();
@@ -545,13 +553,13 @@ namespace TootTallyTournamentHost
             {
                 LeanTween.cancel(_noGapObject);
                 LeanTween.scale(_noGapObject, new Vector3(0f, 0.25f, 1f), 0.09f).setEaseInQuart();
-            }
+            }*/
         }
 
         private void doScoreText(int whichtext)
         {
             string text = "";
-            if (!_releaseBetweenNotes)
+            /*if (!_releaseBetweenNotes)
             {
                 LeanTween.cancel(_noGapObject);
                 _noGapObject.transform.localScale = new Vector3(0.001f, 0.001f, 1f);
@@ -566,7 +574,7 @@ namespace TootTallyTournamentHost
             {
                 LeanTween.cancel(_noGapObject);
                 _noGapObject.transform.localScale = new Vector3(0f, 0f, 1f);
-            }
+            }*/
             if (whichtext == 4)
                 text = "<i>PERFECTO!</i>";
             else if (whichtext == 3)
@@ -579,11 +587,11 @@ namespace TootTallyTournamentHost
                 text = "<i>NASTY</i>";
 
             animateOutNote(_gcInstance.currentnoteindex, whichtext);
-            _popupText.text = text;
-            _popupTextShadow.text = text;
+            /*_popupText.text = text;
+            _popupTextShadow.text = text;*/
 
             _multiHideTimer = 0f;
-            if (_multiplier > 0)
+            /*if (_multiplier > 0)
             {
                 _multiplierText.text = "<i>" + _multiplier.ToString() + "<size=28>x</size></i>";
                 _multiplierTextShadow.text = "<i>" + _multiplier.ToString() + "<size=28>x</size></i>";
@@ -626,20 +634,21 @@ namespace TootTallyTournamentHost
                 return;
             }
             _popupText.color = new Color(1f, 1f, 1f, 1f);
-            _popupTextShadow.color = new Color(0f, 0f, 0f, 1f);
+            _popupTextShadow.color = new Color(0f, 0f, 0f, 1f);*/
         }
 
         private void animateOutNote(int noteindex, int performance)
         {
             GameController.noteendeffect noteendeffect = _allNoteEndEffects[_noteParticlesIndex];
+            AnimateNoteEndEffectAnimations anim = _allNoteEndAnimations[_noteParticlesIndex];
+            anim.CancelAllAnimations();
             noteendeffect.noteeffect_obj.SetActive(true);
-            LeanTween.cancel(noteendeffect.burst_obj);
-            LeanTween.cancel(noteendeffect.drops_obj);
-            LeanTween.cancel(noteendeffect.combotext_obj);
             noteendeffect.noteeffect_rect.anchoredPosition3D = new Vector3(0f, _gcInstance.allnotes[noteindex].transform.GetComponent<RectTransform>().anchoredPosition3D.y + _gcInstance.allnotes[noteindex].transform.GetChild(1).GetComponent<RectTransform>().anchoredPosition3D.y, 0f);
             noteendeffect.burst_obj.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            LeanTween.scale(noteendeffect.burst_obj, new Vector3(1f, 1f, 1f), 0.3f).setEaseOutQuart();
-            LeanTween.rotateZ(noteendeffect.burst_obj, -90f, 0.3f).setEaseLinear();
+            noteendeffect.combotext_obj.transform.localScale = new Vector3(1f, 1f, 1f);
+            noteendeffect.drops_canvasg.alpha = 0.85f;
+            noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
+
             if (performance > 3)
             {
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[1];
@@ -650,13 +659,14 @@ namespace TootTallyTournamentHost
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[0];
                 noteendeffect.burst_canvasg.alpha = 0.4f;
             }
-            LeanTween.alphaCanvas(noteendeffect.burst_canvasg, 0f, 0.3f).setEaseInOutQuart();
-            noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
-            noteendeffect.drops_canvasg.alpha = 0.85f;
-            LeanTween.scale(noteendeffect.drops_obj, new Vector3(0.9f, 0.9f, 1f), 0.25f).setEaseOutQuart();
-            LeanTween.alphaCanvas(noteendeffect.drops_canvasg, 0f, 0.3f).setEaseLinear();
-            noteendeffect.combotext_obj.transform.localScale = new Vector3(1f, 1f, 1f);
-            LeanTween.scale(noteendeffect.combotext_obj, new Vector3(0.7f, 0.7f, 1f), 0.5f).setEaseOutQuart();
+            //LeanTween.scale(noteendeffect.burst_obj, new Vector3(1f, 1f, 1f), 0.3f).setEaseOutQuart();
+            //LeanTween.rotateZ(noteendeffect.burst_obj, -90f, 0.3f).setEaseLinear();
+            //LeanTween.alphaCanvas(noteendeffect.burst_canvasg, 0f, 0.3f).setEaseInOutQuart();
+            //LeanTween.scale(noteendeffect.drops_obj, new Vector3(0.9f, 0.9f, 1f), 0.25f).setEaseOutQuart();
+            //LeanTween.alphaCanvas(noteendeffect.drops_canvasg, 0f, 0.3f).setEaseLinear();
+            //LeanTween.scale(noteendeffect.combotext_obj, new Vector3(0.7f, 0.7f, 1f), 0.5f).setEaseOutQuart();
+            //LeanTween.moveLocalX(noteendeffect.combotext_obj, 30f, 0.5f).setEaseOutQuart();
+            //LeanTween.scale(noteendeffect.combotext_obj, new Vector3(1E-05f, 1E-05f, 0f), 0.2f).setEaseInOutQuart().setDelay(0.51f);
             if (_multiplier > 0)
             {
                 noteendeffect.burst_img.color = new Color(1f, 1f, 1f, 1f);
@@ -665,8 +675,8 @@ namespace TootTallyTournamentHost
                 noteendeffect.combotext_txt_front.text = _multiplier.ToString() + "x";
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, 15f, 0f);
                 noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, -40f);
-                LeanTween.moveLocalY(noteendeffect.combotext_obj, 45f, 0.5f).setEaseOutQuad();
-                LeanTween.rotateZ(noteendeffect.combotext_obj, -10f, 0.5f).setEaseOutQuart();
+                //LeanTween.moveLocalY(noteendeffect.combotext_obj, 45f, 0.5f).setEaseOutQuad();
+                //LeanTween.rotateZ(noteendeffect.combotext_obj, -10f, 0.5f).setEaseOutQuart();
             }
             else
             {
@@ -693,14 +703,63 @@ namespace TootTallyTournamentHost
                 }
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, -20f, 0f);
                 noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, 40f);
-                LeanTween.moveLocalY(noteendeffect.combotext_obj, -50f, 0.5f).setEaseOutQuad();
-                LeanTween.rotateZ(noteendeffect.combotext_obj, 10f, 0.5f).setEaseOutQuart();
+                //LeanTween.moveLocalY(noteendeffect.combotext_obj, -50f, 0.5f).setEaseOutQuad();
+                //LeanTween.rotateZ(noteendeffect.combotext_obj, 10f, 0.5f).setEaseOutQuart();
             }
-            LeanTween.moveLocalX(noteendeffect.combotext_obj, 30f, 0.5f).setEaseOutQuart();
-            LeanTween.scale(noteendeffect.combotext_obj, new Vector3(1E-05f, 1E-05f, 0f), 0.2f).setEaseInOutQuart().setDelay(0.51f);
+            anim.StartAnimateOutAnimation(noteendeffect.burst_obj, noteendeffect.burst_canvasg.gameObject, noteendeffect.drops_obj, noteendeffect.drops_canvasg.gameObject, noteendeffect.combotext_obj, _multiplier);
             _noteParticlesIndex++;
             if (_noteParticlesIndex > 14)
                 _noteParticlesIndex = 0;
+        }
+
+        private class AnimateNoteEndEffectAnimations
+        {
+            private TootTallyAnimation burstObjScale, burstObjRotate, burstCanvasAlpha;
+            private TootTallyAnimation dropsObjScale, dropObjAlpha;
+            private TootTallyAnimation comboTextScale, comboTextPosY, comboTextRotateZ;
+
+
+            public void StartAnimateOutAnimation(GameObject burst_obj, GameObject burst_canvasg, GameObject drops_obj, GameObject drops_canvasg, GameObject comboText_obj, int multiplier)
+            {
+                burstObjScale = TootTallyAnimationManager.AddNewScaleAnimation(burst_obj, Vector3.one, .3f, new SecondDegreeDynamicsAnimation(2f, 1, .5f));
+                burstObjRotate = TootTallyAnimationManager.AddNewRotationAnimation(burst_obj, new Vector3(0, 0, -90f), .3f, new SecondDegreeDynamicsAnimation(2f, 1, 1));
+                burstCanvasAlpha = TootTallyAnimationManager.AddNewAlphaAnimation(burst_canvasg, 0, .3f, new SecondDegreeDynamicsAnimation(.75f, 1, .15f));
+
+                dropsObjScale = TootTallyAnimationManager.AddNewScaleAnimation(drops_obj, new Vector3(.9f, .9f, 1f), .25f, new SecondDegreeDynamicsAnimation(2.25f, 1, 1));
+                dropObjAlpha = TootTallyAnimationManager.AddNewAlphaAnimation(drops_canvasg, 0, .3f, new SecondDegreeDynamicsAnimation(.75f, 1, .15f));
+
+                comboTextScale = TootTallyAnimationManager.AddNewScaleAnimation(comboText_obj, new Vector3(.7f, .7f, 1f), .4f, new SecondDegreeDynamicsAnimation(2.15f, 1, 1.2f), delegate
+                {
+                    comboTextScale = TootTallyAnimationManager.AddNewScaleAnimation(comboText_obj, new Vector3(1E-05f, 1E-05f, 0f), .2f, new SecondDegreeDynamicsAnimation(2.5f, 1, 1.2f));
+                });
+                float targetPosY, targetRotZ;
+                if (multiplier > 0)
+                {
+                    targetPosY = 45f;
+                    targetRotZ = -10f;
+                }
+                else
+                {
+                    targetPosY = -50f;
+                    targetRotZ = 10f;
+                }
+
+                comboTextPosY = TootTallyAnimationManager.AddNewTransformLocalPositionAnimation(comboText_obj, new Vector3(30f, targetPosY, 1f), .5f, new SecondDegreeDynamicsAnimation(2.15f, 1, 1f));
+                comboTextRotateZ = TootTallyAnimationManager.AddNewRotationAnimation(comboText_obj, new Vector3(0f, 0f, targetRotZ), .5f, new SecondDegreeDynamicsAnimation(2.25f, 1, .5f));
+            }
+
+
+            public void CancelAllAnimations()
+            {
+                burstObjScale?.Dispose(true);
+                burstObjRotate?.Dispose(true);
+                dropsObjScale?.Dispose(true);
+                dropObjAlpha?.Dispose(true);
+                comboTextScale?.Dispose(true);
+                comboTextPosY?.Dispose(true);
+                comboTextRotateZ?.Dispose(true);
+                burstCanvasAlpha?.Dispose(true);
+            }
         }
     }
 }

@@ -125,18 +125,7 @@ namespace TootTallyTournamentHost
                 string[][] idList = new string[IDs.Length][]; //????
                 for (int i = 0; i < IDs.Length; i++)
                     idList[i] = IDs[i].Split(',');
-                /*
-                / grist:1
-                / dom: 62
-                / Samuran: 7
-                / Danew: 106
-                / Silver : 98
-                / Beta : 11
-                / Guardie : 114
-                / Dew : 374
-                / Static : 242
-                / PX : 372
-                */
+
                 for (int y = 0; y < verticalScreenCount; y++)
                 {
                     for (int x = 0; x < horizontalScreenCount; x++)
@@ -154,6 +143,10 @@ namespace TootTallyTournamentHost
                 __instance.pointer.transform.localScale = Vector2.zero;
                 __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
             }
+
+            [HarmonyPatch(typeof(CharSelectController), nameof(CharSelectController.Start))]
+            [HarmonyPrefix]
+            public static void OnCharSelectEnter() => GlobalVariables.chosen_soundset = 0;
 
             [HarmonyPatch(typeof(GameController), nameof(GameController.getScoreAverage))]
             [HarmonyPrefix]
