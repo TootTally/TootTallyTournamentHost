@@ -4,7 +4,7 @@
 		<TargetFramework>net48</TargetFramework>
 		<AssemblyName>TootTallyTournamentHost</AssemblyName>
 		<Description>Tournament host client for TootTally</Description>
-		<Version>1.0.4</Version>
+		<Version>1.0.5</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<TromboneChampDir>E:\SteamLibrary\steamapps\common\TromboneChamp</TromboneChampDir>

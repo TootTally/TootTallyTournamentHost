@@ -5,6 +5,7 @@ using HarmonyLib;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyGameModifiers;
@@ -74,6 +75,7 @@ namespace TootTallyTournamentHost
             settingPage?.AddSlider("Start Fadeout", -25, 25, 500, "HD StartFade", StartFade, false);
             settingPage?.AddSlider("End Fadeout", -25, 25, 500, "HD EndFade", EndFade, false);
             _harmony.PatchAll(typeof(TournamentHostPatches));
+            TootTallyGlobalVariables.isTournamentHosting = true;
             LogInfo($"Module loaded!");
         }
 
@@ -81,6 +83,7 @@ namespace TootTallyTournamentHost
         {
             _harmony.UnpatchSelf();
             settingPage.Remove();
+            TootTallyGlobalVariables.isTournamentHosting = false;
             LogInfo($"Module unloaded!");
         }
 
@@ -143,7 +146,7 @@ namespace TootTallyTournamentHost
                 __instance.pointer.transform.localScale = Vector2.zero;
                 __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
             }
-
+            [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
             [HarmonyPatch(typeof(CharSelectController), nameof(CharSelectController.Start))]
             [HarmonyPrefix]
             public static void OnCharSelectEnter() => GlobalVariables.chosen_soundset = 0;

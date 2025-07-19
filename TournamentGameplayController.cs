@@ -40,6 +40,7 @@ namespace TootTallyTournamentHost
         {
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
+            _gcInstance.latency_offset = 0;
             _camera = camera;
             _pppEffects = _camera.GetComponent<PostProcessingBehaviour>();
             _bounds = bounds;
