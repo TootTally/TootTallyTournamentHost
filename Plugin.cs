@@ -66,6 +66,7 @@ namespace TootTallyTournamentHost
             UserIDs = config.Bind("Global", "UserIDs", "70,70;70,70", "List of user IDs to spectate");
             StartFade = config.Bind("Hidden", "StartFade", 3.5f, "Position at which the fade starts for hidden.");
             EndFade = config.Bind("Hidden", "EndFade", -1.6f, "Position at which the fade ends for hidden.");
+            FLIntensity = config.Bind("Flashlight", "FLIntensity", .08f, "Intensity of flashlight: 0 is completely dark, 1 is disable flashlight.");
 
             settingPage = TootTallySettingsManager.AddNewPage("TournamentHost", "Tournament Host", 40f, new Color(0, 0, 0, 0));
             settingPage?.AddSlider("Hori Screens", 1, 10, HorizontalScreenCount, true);
@@ -74,6 +75,7 @@ namespace TootTallyTournamentHost
             settingPage?.AddTextField("UserIDs", UserIDs.Value, false, value => UserIDs.Value = value);
             settingPage?.AddSlider("Start Fadeout", -25, 25, 500, "HD StartFade", StartFade, false);
             settingPage?.AddSlider("End Fadeout", -25, 25, 500, "HD EndFade", EndFade, false);
+            settingPage?.AddSlider("FL intensity", 0, 1, FLIntensity, false);
             _harmony.PatchAll(typeof(TournamentHostPatches));
             TootTallyGlobalVariables.isTournamentHosting = true;
             LogInfo($"Module loaded!");
@@ -90,14 +92,14 @@ namespace TootTallyTournamentHost
         public static class TournamentHostPatches
         {
             private static Vector2 _screenSize;
-            private static List<TournamentGameplayController> _tournamentControllerList = new List<TournamentGameplayController>();
+            private static List<TournamentGameplayController> _tournamentControllerList;
 
             [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
             [HarmonyPostfix]
             public static void OnGameControllerStart(GameController __instance)
             {
                 SpectatingManager.StopAllSpectator();
-                _tournamentControllerList?.Clear();
+                _tournamentControllerList = new List<TournamentGameplayController>();
                 _screenSize = new Vector2(Screen.width, Screen.height);
                 float horizontalScreenCount = (int)Instance.HorizontalScreenCount.Value;
                 float horizontalRatio = _screenSize.x / horizontalScreenCount;
@@ -171,7 +173,7 @@ namespace TootTallyTournamentHost
             [HarmonyPrefix]
             public static void CopyAllAudioClips()
             {
-                _tournamentControllerList?.ForEach(tc => tc.CopyAllAudioClips());
+                _tournamentControllerList.ForEach(tc => tc.CopyAllAudioClips());
             }
 
             [HarmonyPatch(typeof(PlaytestAnims), nameof(PlaytestAnims.Start))]
@@ -179,8 +181,8 @@ namespace TootTallyTournamentHost
             [HarmonyPostfix]
             public static void DisconnectAllClients()
             {
-                _tournamentControllerList?.ForEach(tc => tc.Disconnect());
-                _tournamentControllerList?.Clear();
+                _tournamentControllerList.ForEach(tc => tc.Disconnect());
+                _tournamentControllerList.Clear();
             }
 
             [HarmonyPatch(typeof(GameModifiers.Hidden), nameof(GameModifiers.Hidden.Initialize))]
@@ -194,7 +196,7 @@ namespace TootTallyTournamentHost
             [HarmonyPrefix]
             public static bool InitFlashlight()
             {
-                _tournamentControllerList?.ForEach(tc => tc.InitFlashLight());
+                _tournamentControllerList.ForEach(tc => tc.InitFlashLight());
                 return false;
             }
 
@@ -202,7 +204,7 @@ namespace TootTallyTournamentHost
             [HarmonyPrefix]
             public static bool UpdateFlashlight()
             {
-                _tournamentControllerList?.ForEach(tc => tc.UpdateFlashLight());
+                _tournamentControllerList.ForEach(tc => tc.UpdateFlashLight());
                 return false;
             }
 
@@ -256,5 +258,6 @@ namespace TootTallyTournamentHost
         public ConfigEntry<float> VerticalScreenCount { get; set; }
         public ConfigEntry<string> UserIDs { get; set; }
         public static ConfigEntry<float> StartFade, EndFade;
+        public static ConfigEntry<float> FLIntensity;
     }
 }

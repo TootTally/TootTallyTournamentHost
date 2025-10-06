@@ -28,11 +28,11 @@ namespace TootTallyTournamentHost
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
-        private GameObject _champCanvas, _champPanel;
+        private GameObject _champCanvas, _champObject;
         private static bool _hasSentSecondFlag, _hasSentFirstFlag;
         //private PercentCounter _percentCounter;
 
-        public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
+        public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Any(x => x.time > 1f);
 
         private bool _isTooting;
 
@@ -76,27 +76,32 @@ namespace TootTallyTournamentHost
             _multiplierTextRect = _multiplierTextObject.GetComponent<RectTransform>();*/
 
             _UIHolder = GameObject.Instantiate(_gcInstance.ui_score_shadow.transform.parent.parent.gameObject, _container.transform);
-
             //Probably better to rewrite this in some way
-            _champCanvas = GameObject.Instantiate(_gcInstance.champcontroller.transform.parent, _container.transform).gameObject;
-            _champGUIController = _champCanvas.transform.GetChild(0).GetComponent<ChampGUIController>();
-            _champPanel = _champCanvas.transform.GetChild(1).gameObject;
-            _champPanel.transform.SetParent(_container.transform);
-            _champPanel.transform.localScale = Vector3.one * .75f;
-            var champRect = _champPanel.GetComponent<RectTransform>();
-            champRect.anchorMin = champRect.anchorMax = new Vector2(.06f, .9f);
-            champRect.anchoredPosition = Vector2.zero;
-            var champParent = _champPanel.transform.GetChild(0);
-            var champParentRect = champParent.GetComponent<RectTransform>();
-            champParentRect.anchorMin = champParentRect.anchorMax = Vector2.one / 2f;
-            champParentRect.anchoredPosition = Vector2.zero;
-
-            for (int i = 0; i < _champGUIController.letters.Length; i++)
-                _champGUIController.letters[i] = _champPanel.transform.GetChild(0).GetChild(i).gameObject;
-            for (int i = 0; i < _champGUIController.champlvl.Length; i += 2)
+            try
             {
-                _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
-                _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
+                _champGUIController = GameObject.Instantiate(_gcInstance.champcontroller, _container.transform);
+                _champObject = _champGUIController.gameObject;
+                _champObject.transform.localScale = Vector3.one * .12f;
+                var champRect = _champObject.GetComponent<RectTransform>();
+                champRect.anchorMin = champRect.anchorMax = new Vector2(.06f, .9f);
+                champRect.anchoredPosition = Vector2.zero;
+                var champParent = _champObject.transform.GetChild(0);
+                var champParentRect = champParent.GetComponent<RectTransform>();
+                champParentRect.anchorMin = champParentRect.anchorMax = Vector2.one / 2f;
+                champParentRect.anchoredPosition = Vector2.zero;
+
+                for (int i = 0; i < _champGUIController.letters.Length; i++)
+                    _champGUIController.letters[i] = _champObject.transform.GetChild(i + 1).gameObject;
+                for (int i = 0; i < _champGUIController.champlvl.Length; i += 2)
+                {
+                    _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
+                    _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.LogError($"Crash during champ meter setup.");
+                Plugin.LogError($"{e.Message} - Trace: {e.StackTrace}");
             }
 
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed");
@@ -123,7 +128,10 @@ namespace TootTallyTournamentHost
 
             _pointer = GameObject.Instantiate(gcInstance.pointer, _container.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
-            _pointerRect.pivot = new Vector2(.58f, .5f);
+            if (GlobalVariables.testScreenRatio() == 1610)
+                _pointerRect.pivot = new Vector2(.58f, .5f);
+            else
+                _pointerRect.pivot = new Vector2(.5f, .5f);
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
             _frameIndex = 0;
             _tootIndex = 0;
@@ -142,7 +150,7 @@ namespace TootTallyTournamentHost
         {
             _pppEffects.profile.vignette.enabled = true;
             _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
-            _color = new Color(.5f, .5f, .5f, 1);
+            _color = new Color(.08f, .08f, .08f, 1);
             _settings = new VignetteModel.Settings()
             {
                 center = _pointerPos,
