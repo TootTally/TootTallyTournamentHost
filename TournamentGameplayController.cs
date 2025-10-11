@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using TootTallyCore.Graphics;
 using TootTallyCore.Utils.Helpers;
-using TootTallyGameModifiers;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
-using UnityEngine.PostProcessing;
 using UnityEngine.UI;
 using static TootTallySpectator.SpectatingManager;
 
@@ -20,7 +17,6 @@ namespace TootTallyTournamentHost
         private GameObject _container;
         private Canvas _canvas;
         private Camera _camera;
-        private PostProcessingBehaviour _pppEffects;
         private Rect _bounds;
         private SpectatingSystem _spectatingSystem;
         private GameObject _pointer;
@@ -41,7 +37,6 @@ namespace TootTallyTournamentHost
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
             _camera = camera;
-            _pppEffects = _camera.GetComponent<PostProcessingBehaviour>();
             _bounds = bounds;
             camera.pixelRect = bounds;
             _spectatingSystem = spectatingSystem;
@@ -53,25 +48,6 @@ namespace TootTallyTournamentHost
             _noteParticles = GameObject.Instantiate(_gcInstance.noteparticles, _container.transform);
             _allNoteEndEffects = new GameController.noteendeffect[15];
             SetAllNoteEndEffects();
-
-            _maxStarObject = GameObject.Instantiate(_gcInstance.max_star_gameobject, _container.transform);
-            _maxStarRect = _maxStarObject.GetComponent<RectTransform>();
-
-            _noGapObject = GameObject.Instantiate(_gcInstance.no_gap_gameobject, _container.transform);
-            _noGapRect = _noGapObject.GetComponent<RectTransform>();
-
-            _popupTextShadow = GameObject.Instantiate(_gcInstance.popuptextshadow, _container.transform);
-            _popupText = _popupTextShadow.transform.Find("txt_perfecto_popup-top").GetComponent<Text>();
-            _popupTextObject = _popupTextShadow.gameObject;
-            _popupTextRect = _popupTextObject.GetComponent<RectTransform>();
-            _popupTextRect.anchorMin = _popupTextRect.anchorMax =
-            _noGapRect.anchorMin = _noGapRect.anchorMax =
-            _maxStarRect.anchorMin = _maxStarRect.anchorMax = new Vector2(.3f, .5f);
-
-            _multiplierTextShadow = GameObject.Instantiate(_gcInstance.multtextshadow, _container.transform);
-            _multiplierText = _multiplierTextShadow.transform.Find("Text top").GetComponent<Text>();
-            _multiplierTextObject = _multiplierTextShadow.gameObject;
-            _multiplierTextRect = _multiplierTextObject.GetComponent<RectTransform>();
 
             _UIHolder = GameObject.Instantiate(_gcInstance.ui_score_shadow.transform.parent.parent.gameObject, _container.transform);
 
@@ -110,14 +86,7 @@ namespace TootTallyTournamentHost
                 Plugin.LogInfo("PercentCounterNotFound");
             }
 
-            _UIScoreShadow = _UIHolder.transform.Find("upper_right/ScoreShadow").GetComponent<Text>();
-            _UIScore = _UIScoreShadow.transform.Find("Score").GetComponent<Text>();
-
-            _highestComboTextShadow = _UIHolder.transform.Find("maxcombo/maxcombo_shadow").GetComponent<Text>();
-            _highestComboText = _highestComboTextShadow.transform.Find("maxcombo_text").GetComponent<Text>();
-
             _noteParticlesIndex = 0;
-            _multiHideTimer = -1f;
 
             _pointer = GameObject.Instantiate(gcInstance.pointer, _container.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
@@ -131,33 +100,18 @@ namespace TootTallyTournamentHost
             _isTooting = false;
         }
 
-        private VignetteModel.Settings _settings;
         private Vector2 _pointerPos;
-        private Color _color;
 
         public void InitFlashLight()
         {
-            _pppEffects.profile.vignette.enabled = true;
             _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
-            _color = new Color(.3f, .3f, .3f, 1);
-            _settings = new VignetteModel.Settings()
-            {
-                center = _pointerPos,
-                color = _color,
-                intensity = .8f,
-                mode = VignetteModel.Mode.Classic,
-                rounded = true,
-                roundness = 1,
-                smoothness = 1,
-            };
+            //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
         }
 
         public void UpdateFlashLight()
         {
             _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
-            _settings.center = _pointerPos;
-            _settings.color = _color;
-            _pppEffects.profile.vignette.settings = _settings;
+            //TODO: Move texture position 
         }
 
         private void SetAllNoteEndEffects()
@@ -194,7 +148,6 @@ namespace TootTallyTournamentHost
             _spectatingSystem?.UpdateStacks();
             HandlePitchShift();
             PlaybackSpectatingData(_gcInstance);
-            UpdateMultiHideTimer();
         }
 
         public void Disconnect() => _spectatingSystem?.Disconnect();
@@ -217,16 +170,9 @@ namespace TootTallyTournamentHost
                 _releaseBetweenNotes = _currentNoteData.releasedButtonBetweenNotes;
                 _totalScore = _currentNoteData.totalScore;
                 _currentHealth = _currentNoteData.health;
-                if (_highestcombo < _currentNoteData.highestCombo)
-                    updateHighestCombo(_currentNoteData.highestCombo);
                 _currentNoteData.noteID = -1;
             }
             getScoreAverage();
-        }
-
-        public void OnTallyScore()
-        {
-            tallyScore();
         }
 
         private List<SocketFrameData> _frameData = new List<SocketFrameData>();
@@ -367,36 +313,7 @@ namespace TootTallyTournamentHost
             _currentNoteSound.Stop();
         }
 
-        private Text _highestComboText, _highestComboTextShadow;
-
-        private void updateHighestCombo(int combo)
-        {
-            _highestcombo = combo;
-            LeanTween.cancel(_highestComboTextShadow.gameObject);
-            _highestComboTextShadow.gameObject.transform.localScale = new Vector3(1.5f, 1.2f, 1f);
-            LeanTween.scale(_highestComboTextShadow.gameObject, new Vector3(1f, 1f, 1f), 0.1f).setEaseOutQuart();
-            _highestComboText.text = "longest combo: <color=#ffff00>" + combo.ToString() + "</color>";
-            _highestComboTextShadow.text = "longest combo: " + combo.ToString();
-        }
-
         private int _currentScore;
-        private Text _UIScore, _UIScoreShadow;
-
-        private void tallyScore()
-        {
-            if (_currentScore < _totalScore)
-            {
-                _currentScore += 777;
-                _UIScore.text = _currentScore.ToString("n0");
-                _UIScoreShadow.text = _currentScore.ToString("n0");
-            }
-            if (_currentScore > _totalScore)
-            {
-                _currentScore = _totalScore;
-                _UIScore.text = _currentScore.ToString("n0");
-                _UIScoreShadow.text = _currentScore.ToString("n0");
-            }
-        }
 
         private void HandlePitchShift()
         {
@@ -436,19 +353,6 @@ namespace TootTallyTournamentHost
         }
 
         private GameController.noteendeffect[] _allNoteEndEffects;
-        private GameObject _maxStarObject;
-        private RectTransform _maxStarRect;
-
-        private RectTransform _noGapRect;
-        private GameObject _noGapObject;
-
-        private GameObject _popupTextObject;
-        private RectTransform _popupTextRect;
-        private Text _popupText, _popupTextShadow;
-
-        private GameObject _multiplierTextObject;
-        private RectTransform _multiplierTextRect;
-        private Text _multiplierText, _multiplierTextShadow;
 
         private int _noteParticlesIndex;
 
@@ -458,21 +362,6 @@ namespace TootTallyTournamentHost
         private int _multiplier, _highestcombo;
         private const int MAX_MULTIPLIER = 10;
 
-        private float _multiHideTimer;
-
-        private void UpdateMultiHideTimer()
-        {
-            if (_multiHideTimer > -1f)
-            {
-                _multiHideTimer += 1f * Time.deltaTime;
-                if (_multiHideTimer > 1.5f)
-                {
-                    _multiHideTimer = -1f;
-                    hideMultText();
-                }
-            }
-        }
-
         private float _noteScoreAverage;
 
         private void getScoreAverage()
@@ -481,27 +370,6 @@ namespace TootTallyTournamentHost
                 affectHealthBar(-15f);
             else
                 affectHealthBar(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
-            if (_noteScoreAverage > 95f)
-            {
-                doScoreText(4);
-                return;
-            }
-            if (_noteScoreAverage > 88f)
-            {
-                doScoreText(3);
-                return;
-            }
-            if (_noteScoreAverage > 79f)
-            {
-                doScoreText(2);
-                return;
-            }
-            if (_noteScoreAverage > 70f)
-            {
-                doScoreText(1);
-                return;
-            }
-            doScoreText(0);
         }
 
         private float _currentHealth;
@@ -529,106 +397,7 @@ namespace TootTallyTournamentHost
                 else if (num < 0)
                     _champGUIController.advanceCounter(-1);
             }
-        }
-
-        private void hideMultText()
-        {
-            LeanTween.cancel(_popupTextShadow.gameObject);
-            LeanTween.cancel(_multiplierTextShadow.gameObject);
-            LeanTween.scale(_popupTextShadow.gameObject, new Vector3(0f, 1f, 1f), 0.09f).setEaseInQuart();
-            LeanTween.scale(_multiplierTextShadow.gameObject, new Vector3(0f, 1f, 1f), 0.09f).setEaseInQuart();
-            if (_maxStarObject.transform.localScale.x > 0.1f)
-            {
-                LeanTween.cancel(_maxStarObject);
-                LeanTween.scale(_maxStarObject, new Vector3(0f, 0.25f, 1f), 0.09f).setEaseInQuart();
-            }
-            if (_noGapObject.transform.localScale.x > 0.1f)
-            {
-                LeanTween.cancel(_noGapObject);
-                LeanTween.scale(_noGapObject, new Vector3(0f, 0.25f, 1f), 0.09f).setEaseInQuart();
-            }
-        }
-
-        private void doScoreText(int whichtext)
-        {
-            string text = "";
-            if (!_releaseBetweenNotes)
-            {
-                LeanTween.cancel(_noGapObject);
-                _noGapObject.transform.localScale = new Vector3(0.001f, 0.001f, 1f);
-                LeanTween.scale(_noGapObject, new Vector3(1f, 1f, 1f), 0.1f).setEaseOutQuart();
-                if (_maxStarObject.transform.localScale.x > 0.1f)
-                {
-                    LeanTween.cancel(_maxStarObject);
-                    _maxStarObject.transform.localScale = new Vector3(0f, 0f, 1f);
-                }
-            }
-            else if (_releaseBetweenNotes && _noGapObject.transform.localScale.x > 0.1f)
-            {
-                LeanTween.cancel(_noGapObject);
-                _noGapObject.transform.localScale = new Vector3(0f, 0f, 1f);
-            }
-            if (whichtext == 4)
-                text = "<i>PERFECTO!</i>";
-            else if (whichtext == 3)
-                text = "<i>NICE</i>";
-            else if (whichtext == 2)
-                text = "<i>OK</i>";
-            else if (whichtext == 1)
-                text = "<i>MEH</i>";
-            else if (whichtext == 0)
-                text = "<i>NASTY</i>";
-
-            animateOutNote(_gcInstance.currentnoteindex, whichtext);
-            _popupText.text = text;
-            _popupTextShadow.text = text;
-
-            _multiHideTimer = 0f;
-            if (_multiplier > 0)
-            {
-                _multiplierText.text = "<i>" + _multiplier.ToString() + "<size=28>x</size></i>";
-                _multiplierTextShadow.text = "<i>" + _multiplier.ToString() + "<size=28>x</size></i>";
-                LeanTween.cancel(_multiplierTextShadow.gameObject);
-                _multiplierTextShadow.gameObject.transform.localScale = new Vector3(0.001f, 0.001f, 1f);
-                LeanTween.scale(_multiplierTextShadow.gameObject, new Vector3(1f, 1f, 1f), 0.1f).setEaseOutQuart();
-                _popupTextShadow.rectTransform.anchoredPosition3D = new Vector3(0f, -11f, 0f);
-                _noGapRect.anchoredPosition3D = new Vector3(0f, -6f, 0f);
-            }
-            else
-            {
-                _popupTextShadow.rectTransform.anchoredPosition3D = new Vector3(0f, -31f, 0f);
-                _noGapRect.anchoredPosition3D = new Vector3(0f, -26f, 0f);
-                _multiplierText.text = "";
-                _multiplierTextShadow.text = "";
-            }
-            if (_multiplier == MAX_MULTIPLIER)
-            {
-                LeanTween.cancel(_maxStarObject);
-                _maxStarObject.transform.localScale = new Vector3(0.001f, 0.001f, 1f);
-                LeanTween.scale(_maxStarObject, new Vector3(0.26f, 0.28f, 1f), 0.1f).setEaseOutQuart();
-            }
-            else
-            {
-                _maxStarObject.transform.localScale = new Vector3(0f, 0f, 1f);
-            }
-            LeanTween.cancel(_popupTextShadow.gameObject);
-            _popupTextShadow.gameObject.transform.localScale = new Vector3(0.001f, 0.001f, 1f);
-            LeanTween.scale(_popupTextShadow.gameObject, new Vector3(1f, 1f, 1f), 0.1f).setEaseOutQuart();
-            if (whichtext == 4)
-            {
-                _popupText.color = new Color(1f, 1f, 0.95f, 1f);
-                _popupTextShadow.color = new Color(0.28f, 0.27f, 0f, 1f);
-                return;
-            }
-            if (whichtext == 0)
-            {
-                _popupText.color = new Color(1f, 1f, 1f, 1f);
-                _popupTextShadow.color = new Color(0.23f, 0.11f, 0.05f, 1f);
-                return;
-            }
-            _popupText.color = new Color(1f, 1f, 1f, 1f);
-            _popupTextShadow.color = new Color(0f, 0f, 0f, 1f);
-        }
+        }     
 
         private void animateOutNote(int noteindex, int performance)
         {
