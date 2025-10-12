@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using TootTallyCore.Graphics;
+using TootTallyCore.Graphics.Animations;
 using TootTallyCore.Utils.Helpers;
 using TootTallyMultiplayer;
 using TootTallySpectator;
@@ -26,7 +27,6 @@ namespace TootTallyTournamentHost
         private GameObject _UIHolder;
         private GameObject _champCanvas, _champPanel;
         private static bool _hasSentSecondFlag, _hasSentFirstFlag;
-        //private PercentCounter _percentCounter;
 
         public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
 
@@ -40,7 +40,8 @@ namespace TootTallyTournamentHost
             _bounds = bounds;
             camera.pixelRect = bounds;
             _spectatingSystem = spectatingSystem;
-            _spectatingSystem.OnWebSocketOpenCallback = OnSpectatingConnect;
+            if (_spectatingSystem != null)
+                _spectatingSystem.OnWebSocketOpenCallback = OnSpectatingConnect;
 
             _container = GameObject.Instantiate(new GameObject("Container"), canvasTransform.transform);
             _container.AddComponent<RectTransform>();
@@ -145,6 +146,15 @@ namespace TootTallyTournamentHost
 
         private void Update()
         {
+            if (_spectatingSystem == null || !_spectatingSystem.IsConnected)
+            {
+                if (_isTooting)
+                {
+                    _isTooting = false;
+                    HandlePitchShift();
+                }
+                return;
+            }
             _spectatingSystem?.UpdateStacks();
             HandlePitchShift();
             PlaybackSpectatingData(_gcInstance);
@@ -242,10 +252,10 @@ namespace TootTallyTournamentHost
             if (_lastFrame.time != _currentFrame.time && currentMapPosition >= _currentFrame.time)
                 _lastFrame = _currentFrame;
 
-            if (_frameData.Count > _frameIndex && (_currentFrame.time == -1 || currentMapPosition >= _currentFrame.time))
+            if (_frameData != null && _frameData.Count > _frameIndex && (_currentFrame.time == -1 || currentMapPosition >= _currentFrame.time))
             {
                 _frameIndex = _frameData.FindIndex(_frameIndex > 1 ? _frameIndex - 1 : 0, x => currentMapPosition < x.time);
-                if (_frameData.Count > _frameIndex && _frameIndex != -1)
+                if (_frameIndex != -1 && _frameData.Count > _frameIndex)
                     _currentFrame = _frameData[_frameIndex];
             }
         }
@@ -268,7 +278,7 @@ namespace TootTallyTournamentHost
                 }
             }
 
-            if (_tootData.Count > _tootIndex && currentMapPosition >= _currentTootData.time)
+            if (_tootData != null && _tootData.Count > _tootIndex && currentMapPosition >= _currentTootData.time)
                 _currentTootData = _tootData[_tootIndex++];
 
 
@@ -317,7 +327,7 @@ namespace TootTallyTournamentHost
 
         private void HandlePitchShift()
         {
-            if (_tClips == null || _currentNoteSound == null) return;
+            if (_tClips == null || _currentNoteSound == null || TournamentHostManager.isWaitingForSync) return;
 
             var pointerPos = _pointer.GetComponent<RectTransform>().anchoredPosition.y;
 
@@ -330,7 +340,7 @@ namespace TootTallyTournamentHost
 
                 _currentNoteSound.volume = _currentVolume;
             }
-            if (_isTooting)
+            else
             {
                 if (_currentNoteSound.time > _currentNoteSound.clip.length - 1.25f)
                     _currentNoteSound.time = 1f;
@@ -370,6 +380,11 @@ namespace TootTallyTournamentHost
                 affectHealthBar(-15f);
             else
                 affectHealthBar(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
+            var textID = _noteScoreAverage > 95f ? 4 :
+                _noteScoreAverage > 88f ? 3 :
+                _noteScoreAverage > 79f ? 2 :
+                _noteScoreAverage > 70f ? 1 : 0;
+            animateOutNote(_gcInstance.currentnoteindex, textID);
         }
 
         private float _currentHealth;
@@ -397,19 +412,22 @@ namespace TootTallyTournamentHost
                 else if (num < 0)
                     _champGUIController.advanceCounter(-1);
             }
-        }     
+        }
+
+        private List<TournamentHostNoteEndAnimation> _allNoteEndAnimations;
 
         private void animateOutNote(int noteindex, int performance)
         {
             GameController.noteendeffect noteendeffect = _allNoteEndEffects[_noteParticlesIndex];
+            TournamentHostNoteEndAnimation anim = _allNoteEndAnimations[_noteParticlesIndex];
+            anim.CancelAllAnimations();
             noteendeffect.noteeffect_obj.SetActive(true);
-            LeanTween.cancel(noteendeffect.burst_obj);
-            LeanTween.cancel(noteendeffect.drops_obj);
-            LeanTween.cancel(noteendeffect.combotext_obj);
             noteendeffect.noteeffect_rect.anchoredPosition3D = new Vector3(0f, _gcInstance.allnotes[noteindex].transform.GetComponent<RectTransform>().anchoredPosition3D.y + _gcInstance.allnotes[noteindex].transform.GetChild(1).GetComponent<RectTransform>().anchoredPosition3D.y, 0f);
             noteendeffect.burst_obj.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            LeanTween.scale(noteendeffect.burst_obj, new Vector3(1f, 1f, 1f), 0.3f).setEaseOutQuart();
-            LeanTween.rotateZ(noteendeffect.burst_obj, -90f, 0.3f).setEaseLinear();
+            noteendeffect.combotext_obj.transform.localScale = new Vector3(1f, 1f, 1f);
+            noteendeffect.drops_canvasg.alpha = 0.85f;
+            noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
+
             if (performance > 3)
             {
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[1];
@@ -420,13 +438,6 @@ namespace TootTallyTournamentHost
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[0];
                 noteendeffect.burst_canvasg.alpha = 0.4f;
             }
-            LeanTween.alphaCanvas(noteendeffect.burst_canvasg, 0f, 0.3f).setEaseInOutQuart();
-            noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
-            noteendeffect.drops_canvasg.alpha = 0.85f;
-            LeanTween.scale(noteendeffect.drops_obj, new Vector3(0.9f, 0.9f, 1f), 0.25f).setEaseOutQuart();
-            LeanTween.alphaCanvas(noteendeffect.drops_canvasg, 0f, 0.3f).setEaseLinear();
-            noteendeffect.combotext_obj.transform.localScale = new Vector3(1f, 1f, 1f);
-            LeanTween.scale(noteendeffect.combotext_obj, new Vector3(0.7f, 0.7f, 1f), 0.5f).setEaseOutQuart();
             if (_multiplier > 0)
             {
                 noteendeffect.burst_img.color = new Color(1f, 1f, 1f, 1f);
@@ -435,8 +446,6 @@ namespace TootTallyTournamentHost
                 noteendeffect.combotext_txt_front.text = _multiplier.ToString() + "x";
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, 15f, 0f);
                 noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, -40f);
-                LeanTween.moveLocalY(noteendeffect.combotext_obj, 45f, 0.5f).setEaseOutQuad();
-                LeanTween.rotateZ(noteendeffect.combotext_obj, -10f, 0.5f).setEaseOutQuart();
             }
             else
             {
@@ -463,11 +472,8 @@ namespace TootTallyTournamentHost
                 }
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, -20f, 0f);
                 noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, 40f);
-                LeanTween.moveLocalY(noteendeffect.combotext_obj, -50f, 0.5f).setEaseOutQuad();
-                LeanTween.rotateZ(noteendeffect.combotext_obj, 10f, 0.5f).setEaseOutQuart();
             }
-            LeanTween.moveLocalX(noteendeffect.combotext_obj, 30f, 0.5f).setEaseOutQuart();
-            LeanTween.scale(noteendeffect.combotext_obj, new Vector3(1E-05f, 1E-05f, 0f), 0.2f).setEaseInOutQuart().setDelay(0.51f);
+            anim.StartAnimateOutAnimation(noteendeffect.burst_obj, noteendeffect.burst_canvasg.gameObject, noteendeffect.drops_obj, noteendeffect.drops_canvasg.gameObject, noteendeffect.combotext_obj, _multiplier);
             _noteParticlesIndex++;
             if (_noteParticlesIndex > 14)
                 _noteParticlesIndex = 0;

@@ -27,7 +27,8 @@ namespace TootTallyTournamentHost
         {
             _itemList = new List<GameObject>();
             _layoutPanel = GameObjectFactory.CreateClickableImageHolder(parent, Vector2.zero, new Vector2(Screen.width * LAYOUT_SIZE_MULT, Screen.height * LAYOUT_SIZE_MULT), new Sprite(), "LayoutPreviewPanel", null);
-            GameObject.DestroyImmediate(_layoutPanel.GetComponent<EventTrigger>());
+            if (_layoutPanel.TryGetComponent(out EventTrigger t))
+                GameObject.DestroyImmediate(t);
             _gridLayout = _layoutPanel.AddComponent<GridLayoutGroup>();
             _gridLayout.spacing = Vector2.one * SPACING_MARGIN;
             _gridLayout.childAlignment = TextAnchor.MiddleCenter;
@@ -67,7 +68,8 @@ namespace TootTallyTournamentHost
         public GameObject AddScreenToLayout(int verticalIndex, int horizontalIndex)
         {
             var item = GameObjectFactory.CreateClickableImageHolder(_layoutPanel.transform, Vector2.zero, Vector2.one, new Sprite(), "ScreenItem", null);
-            GameObject.DestroyImmediate(item.GetComponent<EventTrigger>());
+            if (item.TryGetComponent(out EventTrigger t))
+                GameObject.DestroyImmediate(t);
             item.GetComponent<Image>().color = Color.gray;
             var input = GameObjectFactory.CreateInputField(item.transform, Vector2.zero, new Vector2(60, 60), "ScreenInputField", false);
             if (userIDsMatrix.Length > verticalIndex && userIDsMatrix[verticalIndex].Length > horizontalIndex && userIDsMatrix[verticalIndex][horizontalIndex] != 0)

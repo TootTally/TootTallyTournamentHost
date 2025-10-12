@@ -24,25 +24,29 @@ namespace TootTallyTournamentHost
             selectedColor = new Color(1, 0, .5f)
         };
 
-        TootTallySettingDropdown _layoutTypeDropdown;
-        TootTallySettingSlider _horizontalScreenCountSlider, _verticalScreenCountSlider;
-        TournamentHostLayoutPreview _layoutPreview;
+        private TootTallySettingDropdown _layoutTypeDropdown;
+        private TootTallySettingSlider _horizontalScreenCountSlider, _verticalScreenCountSlider;
+        private TournamentHostLayoutPreview _layoutPreview;
 
         public TournamentHostSettingPage() : base("Tournament Host", "Tournament Host", 40f, new Color(0,0,0,.1f), _pageBtnColors)
         {
+            
             _layoutTypeDropdown = AddDropdown("Layout Type", Plugin.Instance.LayoutType);
             _horizontalScreenCountSlider = AddSlider("Horizontal Screen", 4, 10, Plugin.Instance.HorizontalScreenCount, true);
             _verticalScreenCountSlider = AddSlider("Vertical Screen", 4, 10, Plugin.Instance.VerticalScreenCount, true);
+            if (TootTallySettingsManager.isInitialized)
+                Initialize();
         }
 
         public override void Initialize()
         {
             base.Initialize();
-            _layoutTypeDropdown.dropdown.onValueChanged.AddListener(OnLayoutTypeChange);
-            UpdateScreenCountSliderState();
             _layoutPreview = new TournamentHostLayoutPreview(gridPanel.transform);
             _horizontalScreenCountSlider.slider.onValueChanged.AddListener(_layoutPreview.UpdateLayout);
             _verticalScreenCountSlider.slider.onValueChanged.AddListener(_layoutPreview.UpdateLayout);
+            _layoutTypeDropdown.dropdown.onValueChanged.AddListener(OnLayoutTypeChange);
+            UpdateScreenCountSliderState();
+            
         }
 
         private void OnLayoutTypeChange(int value)
@@ -63,8 +67,6 @@ namespace TootTallyTournamentHost
             Plugin.Instance.HorizontalScreenCount.Value = screenCount.x;
             Plugin.Instance.VerticalScreenCount.Value = screenCount.y;
 
-            _horizontalScreenCountSlider.slider.value = screenCount.x;
-            _verticalScreenCountSlider.slider.value = screenCount.y;
             UpdateScreenCountSliderState();
             _layoutPreview.UpdateLayout();
         }

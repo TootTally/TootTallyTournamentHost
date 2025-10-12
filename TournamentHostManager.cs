@@ -31,6 +31,7 @@ namespace TootTallyTournamentHost
             float verticalScreenCount = (int)Plugin.Instance.VerticalScreenCount.Value;
             float verticalRatio = _screenSize.y / verticalScreenCount;
             var gameplayCanvas = GameObject.Find("GameplayCanvas");
+
             gameplayCanvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             var sizeDelta = gameplayCanvas.GetComponent<RectTransform>().sizeDelta;
             gameplayCanvas.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x / horizontalScreenCount, sizeDelta.y);
@@ -52,27 +53,18 @@ namespace TootTallyTournamentHost
             gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
 
             var IDs = ConvertStringToMatrix(Plugin.Instance.UserIDs.Value);
-            /*
-            / grist:1
-            / dom: 62
-            / Samuran: 7
-            / Danew: 106
-            / Silver : 98
-            / Beta : 11
-            / Guardie : 114
-            / Dew : 374
-            / Static : 242
-            / PX : 372
-            */
             for (int y = 0; y < verticalScreenCount; y++)
             {
                 for (int x = 0; x < horizontalScreenCount; x++)
                 {
                     var id = IDs[y][x];
-                    if (id != 0)
+                    if (id >= 0)
                     {
                         var tc = gameplayCanvas.AddComponent<TournamentGameplayController>();
-                        tc.Initialize(__instance, GameObject.Instantiate(botLeftCam), new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio), canvasObject.transform, new SpectatingSystem(id, id.ToString()));
+                        tc.Initialize(__instance, GameObject.Instantiate(botLeftCam),
+                            new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
+                            canvasObject.transform,
+                            id != 0 ? new SpectatingSystem(id, id.ToString()) : null);
                         _tournamentControllerList.Add(tc);
                     }
                 }
@@ -94,7 +86,7 @@ namespace TootTallyTournamentHost
         [HarmonyPrefix]
         public static bool OnTallyScorePrefix()
         {
-            _tournamentControllerList.ForEach(tc => tc.OnTallyScore());
+            //_tournamentControllerList.ForEach(tc => tc.OnTallyScore());
             return false;
         }
 
@@ -131,23 +123,23 @@ namespace TootTallyTournamentHost
             return false;
         }
 
-        private static bool _waitingToSync;
+        public static bool isWaitingForSync;
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.playsong))]
         [HarmonyPrefix]
         public static bool OverwriteStartSongIfSyncRequired(GameController __instance)
         {
-            if (ShouldWaitForSync(out _waitingToSync))
+            if (ShouldWaitForSync(out isWaitingForSync))
                 TootTallyNotifManager.DisplayNotif("Waiting to sync with host...");
 
-            return !_waitingToSync;
+            return !isWaitingForSync;
         }
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.Update))]
         [HarmonyPostfix]
         public static void OnUpdatePlaybackSpectatingData(GameController __instance)
         {
-            if (_waitingToSync && __instance.curtainc.doneanimating && !ShouldWaitForSync(out _waitingToSync))
+            if (isWaitingForSync && __instance.curtainc.doneanimating && !ShouldWaitForSync(out isWaitingForSync))
             {
                 if (MultiplayerManager.IsPlayingMultiplayer)
                     MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
@@ -185,7 +177,12 @@ namespace TootTallyTournamentHost
                 var userRows = userColumns[i].Split(',');
                 matrix[i] = new int[userRows.Length];
                 for (int j = 0; j < userRows.Length; j++)
-                    matrix[i][j] = int.Parse(userRows[j]);
+                {
+                    if (int.TryParse(userRows[j], out int row))
+                        matrix[i][j] = row;
+                    else
+                        matrix[i][j] = 0;
+                }
             }
             return matrix;
         }
@@ -194,7 +191,7 @@ namespace TootTallyTournamentHost
             var userIDString = "";
             for (int i = 0; i < userIDMatrix.Length; i++)
             {
-                userIDString += userIDMatrix[i].Join(delimiter:",");
+                userIDString += userIDMatrix[i].Join(delimiter: ",");
                 if (i != userIDMatrix.Length - 1)
                     userIDString += ";";
             }
