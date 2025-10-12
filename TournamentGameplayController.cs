@@ -30,7 +30,7 @@ namespace TootTallyTournamentHost
 
         public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
 
-        private bool _isTooting;
+        private bool _isTooting, _initCompleted = false;
 
         public void Initialize(GameController gcInstance, Camera camera, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem)
         {
@@ -43,15 +43,53 @@ namespace TootTallyTournamentHost
             if (_spectatingSystem != null)
                 _spectatingSystem.OnWebSocketOpenCallback = OnSpectatingConnect;
 
+            InitContainer(canvasTransform);
+
+            InitNoteParticles();
+
+            InitUIHolder();
+
+            //InitChamp();
+
+            InitPointer();
+
+            InitReplayVariables();
+
+            _initCompleted = true;
+        }
+
+        private void InitContainer(Transform canvasTransform)
+        {
             _container = GameObject.Instantiate(new GameObject("Container"), canvasTransform.transform);
             _container.AddComponent<RectTransform>();
+        }
 
+        private void InitNoteParticles()
+        {
             _noteParticles = GameObject.Instantiate(_gcInstance.noteparticles, _container.transform);
             _allNoteEndEffects = new GameController.noteendeffect[15];
             SetAllNoteEndEffects();
+            _noteParticlesIndex = 0;
+        }
 
+        private void InitUIHolder()
+        {
             _UIHolder = GameObject.Instantiate(_gcInstance.ui_score_shadow.transform.parent.parent.gameObject, _container.transform);
+            GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed");
+            GameObjectFactory.DestroyFromParent(_UIHolder, "PracticeMode");
+            GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
+            try
+            {
+                DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
+            }
+            catch (Exception e)
+            {
+                Plugin.LogInfo("PercentCounterNotFound");
+            }
+        }
 
+        private void InitChamp()
+        {
             //Probably better to rewrite this in some way
             _champCanvas = GameObject.Instantiate(_gcInstance.champcontroller.transform.parent, _container.transform).gameObject;
             _champGUIController = _champCanvas.transform.GetChild(0).GetComponent<ChampGUIController>();
@@ -73,25 +111,17 @@ namespace TootTallyTournamentHost
                 _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
                 _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
             }
+        }
 
-            GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed");
-            GameObjectFactory.DestroyFromParent(_UIHolder, "PracticeMode");
-            GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
-
-            try
-            {
-                DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
-            }
-            catch (Exception e)
-            {
-                Plugin.LogInfo("PercentCounterNotFound");
-            }
-
-            _noteParticlesIndex = 0;
-
-            _pointer = GameObject.Instantiate(gcInstance.pointer, _container.transform);
+        private void InitPointer()
+        {
+            _pointer = GameObject.Instantiate(_gcInstance.pointer, _container.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
+        }
+
+        private void InitReplayVariables()
+        {
             _frameIndex = 0;
             _tootIndex = 0;
             _lastFrame.time = -1;
@@ -99,20 +129,6 @@ namespace TootTallyTournamentHost
             _currentFrame = new SocketFrameData() { time = -1, noteHolder = 0, pointerPosition = 0 };
             _currentTootData = new SocketTootData() { time = -1, isTooting = false, noteHolder = 0 };
             _isTooting = false;
-        }
-
-        private Vector2 _pointerPos;
-
-        public void InitFlashLight()
-        {
-            _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
-            //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
-        }
-
-        public void UpdateFlashLight()
-        {
-            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
-            //TODO: Move texture position 
         }
 
         private void SetAllNoteEndEffects()
@@ -136,6 +152,21 @@ namespace TootTallyTournamentHost
             }
         }
 
+
+        private Vector2 _pointerPos;
+
+        public void InitFlashLight()
+        {
+            _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
+            //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
+        }
+
+        public void UpdateFlashLight()
+        {
+            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
+            //TODO: Move texture position 
+        }
+
         private void OnSpectatingConnect(SpectatingSystem sender)
         {
             _spectatingSystem.OnSocketUserStateReceived = OnUserStateReceived;
@@ -146,6 +177,8 @@ namespace TootTallyTournamentHost
 
         private void Update()
         {
+            if (!_initCompleted) return;
+
             if (_spectatingSystem == null || !_spectatingSystem.IsConnected)
             {
                 if (_isTooting)
@@ -164,6 +197,8 @@ namespace TootTallyTournamentHost
 
         public void OnGetScoreAverage()
         {
+            if (!_initCompleted) return;
+
             if (!_hasSentSecondFlag)
             {
                 MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
@@ -211,6 +246,8 @@ namespace TootTallyTournamentHost
 
         private void OnNoteDataReceived(SocketNoteData noteData)
         {
+            if (!_initCompleted) return;
+
             if (!_hasSentFirstFlag)
             {
                 MultiplayerManager.GetMultiplayerController.SendQuickChat(6969);
@@ -222,7 +259,7 @@ namespace TootTallyTournamentHost
 
         public void PlaybackSpectatingData(GameController __instance)
         {
-            if (_frameData == null || _tootData == null) return;
+            if (_frameData == null || _tootData == null || !_initCompleted) return;
 
             var currentMapPosition = __instance.musictrack.time;
 
@@ -286,6 +323,8 @@ namespace TootTallyTournamentHost
 
         private void SetCursorPosition(float newPosition)
         {
+            if (!_initCompleted) return;
+
             _pointerRect.anchoredPosition = new Vector2(_pointerRect.sizeDelta.x, newPosition);
         }
 
@@ -302,6 +341,8 @@ namespace TootTallyTournamentHost
 
         private void PlayNote()
         {
+            if (!_initCompleted) return;
+
             float num = 9999f;
             int num2 = 0;
             for (int i = 0; i < 15; i++)
@@ -327,7 +368,7 @@ namespace TootTallyTournamentHost
 
         private void HandlePitchShift()
         {
-            if (_tClips == null || _currentNoteSound == null || TournamentHostManager.isWaitingForSync) return;
+            if (_tClips == null || _currentNoteSound == null || TournamentHostManager.isWaitingForSync || !_initCompleted) return;
 
             var pointerPos = _pointer.GetComponent<RectTransform>().anchoredPosition.y;
 
@@ -376,6 +417,8 @@ namespace TootTallyTournamentHost
 
         private void getScoreAverage()
         {
+            if (!_initCompleted) return;
+
             if (!_releaseBetweenNotes)
                 affectHealthBar(-15f);
             else
