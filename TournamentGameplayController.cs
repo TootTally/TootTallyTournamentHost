@@ -25,13 +25,14 @@ namespace TootTallyTournamentHost
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
-        private GameObject _champCanvas, _champPanel;
+        private GameObject _champPanel;
         private static bool _hasSentSecondFlag, _hasSentFirstFlag;
 
         public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
 
         private bool _isTooting, _initCompleted = false;
 
+        #region inits
         public void Initialize(GameController gcInstance, Camera camera, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem)
         {
             _hasSentSecondFlag = _hasSentFirstFlag = false;
@@ -49,7 +50,7 @@ namespace TootTallyTournamentHost
 
             InitUIHolder();
 
-            //InitChamp();
+            InitChamp();
 
             InitPointer();
 
@@ -62,12 +63,14 @@ namespace TootTallyTournamentHost
         {
             _container = GameObject.Instantiate(new GameObject("Container"), canvasTransform.transform);
             _container.AddComponent<RectTransform>();
+            var containerMask = _container.AddComponent<Mask>();
         }
 
         private void InitNoteParticles()
         {
             _noteParticles = GameObject.Instantiate(_gcInstance.noteparticles, _container.transform);
             _allNoteEndEffects = new GameController.noteendeffect[15];
+            _allNoteEndAnimations = new TournamentHostNoteEndAnimation[15];
             SetAllNoteEndEffects();
             _noteParticlesIndex = 0;
         }
@@ -78,6 +81,11 @@ namespace TootTallyTournamentHost
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed");
             GameObjectFactory.DestroyFromParent(_UIHolder, "PracticeMode");
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
+            RemovePercentCounterIfFound();
+        }
+
+        private void RemovePercentCounterIfFound()
+        {
             try
             {
                 DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
@@ -87,22 +95,13 @@ namespace TootTallyTournamentHost
                 Plugin.LogInfo("PercentCounterNotFound");
             }
         }
-
+        
         private void InitChamp()
         {
             //Probably better to rewrite this in some way
-            _champCanvas = GameObject.Instantiate(_gcInstance.champcontroller.transform.parent, _container.transform).gameObject;
-            _champGUIController = _champCanvas.transform.GetChild(0).GetComponent<ChampGUIController>();
-            _champPanel = _champCanvas.transform.GetChild(1).gameObject;
-            _champPanel.transform.SetParent(_container.transform);
-            _champPanel.transform.localScale = Vector3.one * .75f;
-            var champRect = _champPanel.GetComponent<RectTransform>();
-            champRect.anchorMin = champRect.anchorMax = new Vector2(.06f, .9f);
-            champRect.anchoredPosition = Vector2.zero;
-            var champParent = _champPanel.transform.GetChild(0);
-            var champParentRect = champParent.GetComponent<RectTransform>();
-            champParentRect.anchorMin = champParentRect.anchorMax = Vector2.one / 2f;
-            champParentRect.anchoredPosition = Vector2.zero;
+            _champGUIController = GameObject.Instantiate(_gcInstance.champcontroller, _container.transform);
+            _champPanel = _champGUIController.transform.GetChild(1).gameObject;
+            //_champPanel.transform.localScale = Vector3.one * .75f;
 
             for (int i = 0; i < _champGUIController.letters.Length; i++)
                 _champGUIController.letters[i] = _champPanel.transform.GetChild(0).GetChild(i).gameObject;
@@ -111,6 +110,7 @@ namespace TootTallyTournamentHost
                 _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
                 _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
             }
+            _gcInstance.champcontroller.gameObject.SetActive(false);
         }
 
         private void InitPointer()
@@ -149,9 +149,9 @@ namespace TootTallyTournamentHost
                 noteendeffect.combotext_txt_front = gameObject.transform.GetChild(2).GetChild(0).GetComponent<Text>();
                 noteendeffect.combotext_txt_shadow = gameObject.transform.GetChild(2).GetComponent<Text>();
                 _allNoteEndEffects[i] = noteendeffect;
+                _allNoteEndAnimations[i] = new TournamentHostNoteEndAnimation();
             }
         }
-
 
         private Vector2 _pointerPos;
 
@@ -160,19 +160,19 @@ namespace TootTallyTournamentHost
             _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
             //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
         }
-
-        public void UpdateFlashLight()
-        {
-            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
-            //TODO: Move texture position 
-        }
-
+        #endregion
         private void OnSpectatingConnect(SpectatingSystem sender)
         {
             _spectatingSystem.OnSocketUserStateReceived = OnUserStateReceived;
             _spectatingSystem.OnSocketFrameDataReceived = OnFrameDataReceived;
             _spectatingSystem.OnSocketTootDataReceived = OnTootDataReceived;
             _spectatingSystem.OnSocketNoteDataReceived = OnNoteDataReceived;
+        }
+
+        public void UpdateFlashLight()
+        {
+            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
+            //TODO: Move texture position 
         }
 
         private void Update()
@@ -199,7 +199,7 @@ namespace TootTallyTournamentHost
         {
             if (!_initCompleted) return;
 
-            if (!_hasSentSecondFlag)
+            if (!_hasSentSecondFlag && MultiplayerManager.IsPlayingMultiplayer)
             {
                 MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
                 _hasSentSecondFlag = true;
@@ -217,7 +217,7 @@ namespace TootTallyTournamentHost
                 _currentHealth = _currentNoteData.health;
                 _currentNoteData.noteID = -1;
             }
-            getScoreAverage();
+            GetScoreAverage();
         }
 
         private List<SocketFrameData> _frameData = new List<SocketFrameData>();
@@ -248,7 +248,7 @@ namespace TootTallyTournamentHost
         {
             if (!_initCompleted) return;
 
-            if (!_hasSentFirstFlag)
+            if (!_hasSentFirstFlag && MultiplayerManager.IsPlayingMultiplayer)
             {
                 MultiplayerManager.GetMultiplayerController.SendQuickChat(6969);
                 _hasSentFirstFlag = true;
@@ -404,6 +404,7 @@ namespace TootTallyTournamentHost
         }
 
         private GameController.noteendeffect[] _allNoteEndEffects;
+        private TournamentHostNoteEndAnimation[] _allNoteEndAnimations;
 
         private int _noteParticlesIndex;
 
@@ -415,38 +416,43 @@ namespace TootTallyTournamentHost
 
         private float _noteScoreAverage;
 
-        private void getScoreAverage()
+        private void GetScoreAverage()
         {
-            if (!_initCompleted) return;
-
             if (!_releaseBetweenNotes)
-                affectHealthBar(-15f);
+                ApplyHealthChange(-15f);
             else
-                affectHealthBar(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
+                ApplyHealthChange(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
             var textID = _noteScoreAverage > 95f ? 4 :
                 _noteScoreAverage > 88f ? 3 :
                 _noteScoreAverage > 79f ? 2 :
                 _noteScoreAverage > 70f ? 1 : 0;
-            animateOutNote(_gcInstance.currentnoteindex, textID);
+            AnimateNoteEndEffect(_gcInstance.currentnoteindex, textID);
         }
 
         private float _currentHealth;
         private ChampGUIController _champGUIController; //Probably have to make my own TournamentChampGUIController
 
-        private void affectHealthBar(float healthchange)
+        private void ApplyHealthChange(float healthChange)
         {
-            if (_currentHealth < 100f && _currentHealth + healthchange >= 100f)
+            if (_currentHealth < 100f && _currentHealth + healthChange >= 100f)
                 _gcInstance.playGoodSound();
-            else if (_currentHealth >= 100f && _currentHealth + healthchange < 100f)
+            else if (_currentHealth >= 100f && _currentHealth + healthChange < 100f)
             {
                 _currentHealth = 0f;
                 _gcInstance.sfxrefs.slidedown.Play();
             }
-            _currentHealth += healthchange;
+            _currentHealth += healthChange;
             if (_currentHealth > 100f)
                 _currentHealth = 100f;
             else if (_currentHealth < 0f)
                 _currentHealth = 0f;
+            UpdateChampMeter();
+        }
+
+        private void UpdateChampMeter()
+        {
+            if (_champGUIController == null) return;
+
             int num = Mathf.FloorToInt(_currentHealth * 0.1f) - _champGUIController.healthcounter;
             for (int i = 0; i < Mathf.Abs(num); i++)
             {
@@ -457,20 +463,17 @@ namespace TootTallyTournamentHost
             }
         }
 
-        private List<TournamentHostNoteEndAnimation> _allNoteEndAnimations;
-
-        private void animateOutNote(int noteindex, int performance)
+        private void AnimateNoteEndEffect(int noteindex, int performance)
         {
             GameController.noteendeffect noteendeffect = _allNoteEndEffects[_noteParticlesIndex];
             TournamentHostNoteEndAnimation anim = _allNoteEndAnimations[_noteParticlesIndex];
             anim.CancelAllAnimations();
             noteendeffect.noteeffect_obj.SetActive(true);
-            noteendeffect.noteeffect_rect.anchoredPosition3D = new Vector3(0f, _gcInstance.allnotes[noteindex].transform.GetComponent<RectTransform>().anchoredPosition3D.y + _gcInstance.allnotes[noteindex].transform.GetChild(1).GetComponent<RectTransform>().anchoredPosition3D.y, 0f);
+            noteendeffect.noteeffect_rect.anchoredPosition3D = new Vector3(0f, _gcInstance.leveldata[noteindex][4], 0f);
             noteendeffect.burst_obj.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            noteendeffect.combotext_obj.transform.localScale = new Vector3(1f, 1f, 1f);
+            noteendeffect.combotext_obj.transform.localScale = Vector3.one;
             noteendeffect.drops_canvasg.alpha = 0.85f;
             noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
-
             if (performance > 3)
             {
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[1];
@@ -483,9 +486,9 @@ namespace TootTallyTournamentHost
             }
             if (_multiplier > 0)
             {
-                noteendeffect.burst_img.color = new Color(1f, 1f, 1f, 1f);
+                noteendeffect.burst_img.color = Color.white;
                 noteendeffect.combotext_txt_shadow.text = _multiplier.ToString() + "x";
-                noteendeffect.combotext_txt_front.color = new Color(1f, 1f, 1f, 1f);
+                noteendeffect.combotext_txt_front.color = Color.white;
                 noteendeffect.combotext_txt_front.text = _multiplier.ToString() + "x";
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, 15f, 0f);
                 noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, -40f);
@@ -494,23 +497,23 @@ namespace TootTallyTournamentHost
             {
                 if (performance == 0)
                 {
-                    noteendeffect.burst_img.color = new Color(1f, 0f, 0f, 1f);
+                    noteendeffect.burst_img.color = Color.red;
                     noteendeffect.combotext_txt_shadow.text = "x";
-                    noteendeffect.combotext_txt_front.color = new Color(1f, 0f, 0f, 1f);
+                    noteendeffect.combotext_txt_front.color = Color.red;
                     noteendeffect.combotext_txt_front.text = "x";
                 }
                 else if (performance == 1)
                 {
-                    noteendeffect.burst_img.color = new Color(1f, 1f, 1f, 1f);
+                    noteendeffect.burst_img.color = Color.white;
                     noteendeffect.combotext_txt_shadow.text = "MEH";
-                    noteendeffect.combotext_txt_front.color = new Color(1f, 1f, 1f, 1f);
+                    noteendeffect.combotext_txt_front.color = Color.white;
                     noteendeffect.combotext_txt_front.text = "MEH";
                 }
                 else if (performance == 2)
                 {
-                    noteendeffect.burst_img.color = new Color(1f, 1f, 1f, 1f);
+                    noteendeffect.burst_img.color = Color.white;
                     noteendeffect.combotext_txt_shadow.text = "OK";
-                    noteendeffect.combotext_txt_front.color = new Color(1f, 1f, 1f, 1f);
+                    noteendeffect.combotext_txt_front.color = Color.white;
                     noteendeffect.combotext_txt_front.text = "OK";
                 }
                 noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, -20f, 0f);

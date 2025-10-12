@@ -5,6 +5,7 @@ using HarmonyLib;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyGameModifiers;
@@ -67,11 +68,13 @@ namespace TootTallyTournamentHost
             UserIDs = config.Bind("Global", "UserIDs", "0,0;0,0", "List of user IDs to spectate");
             settingPage = TootTallySettingsManager.AddNewPage(new TournamentHostSettingPage());
             _harmony.PatchAll(typeof(TournamentHostManager));
+            TootTallyGlobalVariables.isTournamentHosting = true;
             LogInfo($"Module loaded!");
         }
 
         public void UnloadModule()
         {
+            TootTallyGlobalVariables.isTournamentHosting = false;
             _harmony.UnpatchSelf();
             settingPage.Remove();
             LogInfo($"Module unloaded!");
