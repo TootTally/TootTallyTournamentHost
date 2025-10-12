@@ -46,6 +46,8 @@ namespace TootTallyTournamentHost
             float verticalRatio = Screen.height * LAYOUT_SIZE_MULT / verticalScreenCount;
             _gridLayout.cellSize = new Vector2(horizontalRatio - SPACING_MARGIN, verticalRatio - SPACING_MARGIN);
             _gridLayout.constraintCount = (int)horizontalScreenCount;
+            _gridLayout.childAlignment = TextAnchor.LowerLeft;
+            _gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
             foreach (var item in _itemList)
                 GameObject.DestroyImmediate(item);
             _itemList.Clear();

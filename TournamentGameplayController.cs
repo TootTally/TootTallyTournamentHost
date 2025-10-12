@@ -17,29 +17,33 @@ namespace TootTallyTournamentHost
         private GameController _gcInstance;
         private GameObject _container;
         private Canvas _canvas;
-        private Camera _camera;
+        private Camera _gameCam, _bgCam;
         private Rect _bounds;
         private SpectatingSystem _spectatingSystem;
         private GameObject _pointer;
+        
         private RectTransform _pointerRect;
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
-        private GameObject _champPanel;
+        private GameObject _champObject;
         private static bool _hasSentSecondFlag, _hasSentFirstFlag;
 
-        public bool IsReady => _frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f;
+        public bool IsReady => _isFiller || (_frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f);
 
-        private bool _isTooting, _initCompleted = false;
+        private bool _isTooting, _isFiller, _initCompleted = false;
 
         #region inits
-        public void Initialize(GameController gcInstance, Camera camera, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem)
+        public void Initialize(GameController gcInstance, Camera gameCam, Camera bgCam, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem, bool isFiller = false)
         {
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
-            _camera = camera;
+            _gameCam = gameCam;
+            _bgCam = bgCam;
             _bounds = bounds;
-            camera.pixelRect = bounds;
+            gameCam.pixelRect = bounds;
+            bgCam.pixelRect = bounds;
+            _isFiller = isFiller;
             _spectatingSystem = spectatingSystem;
             if (_spectatingSystem != null)
                 _spectatingSystem.OnWebSocketOpenCallback = OnSpectatingConnect;
@@ -56,7 +60,20 @@ namespace TootTallyTournamentHost
 
             InitReplayVariables();
 
+            if (_isFiller)
+                HideEverything();
+
             _initCompleted = true;
+        }
+
+        private void HideEverything()
+        {
+            _noteParticles.SetActive(false);
+            _UIHolder.SetActive(false);
+            _pointer.SetActive(false);
+            _champObject.SetActive(false);
+            _gameCam.enabled = false;
+            _bgCam.enabled = false;
         }
 
         private void InitContainer(Transform canvasTransform)
@@ -98,19 +115,21 @@ namespace TootTallyTournamentHost
         
         private void InitChamp()
         {
+            _gcInstance.champcontroller.gameObject.SetActive(false);
             //Probably better to rewrite this in some way
             _champGUIController = GameObject.Instantiate(_gcInstance.champcontroller, _container.transform);
-            _champPanel = _champGUIController.transform.GetChild(1).gameObject;
+            _champObject = _champGUIController.gameObject;
+            _champObject.SetActive(true);
+            _champObject.transform.position = new Vector3(_champObject.transform.position.x, _champObject.transform.position.y, 0);
             //_champPanel.transform.localScale = Vector3.one * .75f;
 
             for (int i = 0; i < _champGUIController.letters.Length; i++)
-                _champGUIController.letters[i] = _champPanel.transform.GetChild(0).GetChild(i).gameObject;
+                _champGUIController.letters[i] = _champObject.transform.GetChild(i + 1).gameObject;
             for (int i = 0; i < _champGUIController.champlvl.Length; i += 2)
             {
                 _champGUIController.champlvl[i] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(0).gameObject;
                 _champGUIController.champlvl[i + 1] = _champGUIController.letters[i / 2].transform.GetChild(0).GetChild(1).gameObject;
             }
-            _gcInstance.champcontroller.gameObject.SetActive(false);
         }
 
         private void InitPointer()

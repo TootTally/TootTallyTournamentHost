@@ -37,6 +37,7 @@ namespace TootTallyTournamentHost
             gameplayCanvas.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x / horizontalScreenCount, sizeDelta.y);
             gameplayCanvas.GetComponent<RectTransform>().pivot = new Vector2(.5f * (horizontalScreenCount - (horizontalScreenCount - verticalScreenCount)), .5f);
             var botLeftCam = GameObject.Find("GameplayCam").GetComponent<Camera>();
+            var bgCam = __instance.bgcontroller.fullbgobject.GetComponent<Camera>();
 
             var canvasObject = new GameObject($"TournamentGameplayCanvas");
             var canvas = canvasObject.AddComponent<Canvas>();
@@ -51,6 +52,7 @@ namespace TootTallyTournamentHost
             var gridLayout = canvasObject.AddComponent<GridLayoutGroup>();
             gridLayout.cellSize = new Vector2(horizontalRatio / canvas.scaleFactor, verticalRatio / canvas.scaleFactor);
             gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
+            //gridLayout.childAlignment = TextAnchor.LowerLeft;
 
             var IDs = ConvertStringToMatrix(Plugin.Instance.UserIDs.Value);
             for (int y = 0; y < verticalScreenCount; y++)
@@ -58,15 +60,15 @@ namespace TootTallyTournamentHost
                 for (int x = 0; x < horizontalScreenCount; x++)
                 {
                     var id = IDs[y][x];
-                    if (id >= 0)
-                    {
-                        var tc = gameplayCanvas.AddComponent<TournamentGameplayController>();
-                        tc.Initialize(__instance, GameObject.Instantiate(botLeftCam),
-                            new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
-                            canvasObject.transform,
-                            id != 0 ? new SpectatingSystem(id, id.ToString()) : null);
-                        _tournamentControllerList.Add(tc);
-                    }
+                    var tc = gameplayCanvas.AddComponent<TournamentGameplayController>();
+                    tc.Initialize(__instance,
+                        GameObject.Instantiate(botLeftCam),
+                        GameObject.Instantiate(bgCam),
+                        new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
+                        canvasObject.transform,
+                        id > 0 ? new SpectatingSystem(id, id.ToString()) : null,
+                        id < 0);
+                    _tournamentControllerList.Add(tc);
                 }
             }
             botLeftCam.enabled = false;
