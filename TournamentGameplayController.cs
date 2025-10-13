@@ -457,7 +457,7 @@ namespace TootTallyTournamentHost
         private float _currentHealth;
         private ChampGUIController _champGUIController; //Probably have to make my own TournamentChampGUIController
 
-        private void ApplyHealthChange(float healthChange)
+        /*private void ApplyHealthChange(float healthChange)
         {
             if (_currentHealth < 100f && _currentHealth + healthChange >= 100f)
                 _gcInstance.playGoodSound();
@@ -472,7 +472,7 @@ namespace TootTallyTournamentHost
             else if (_currentHealth < 0f)
                 _currentHealth = 0f;
             UpdateChampMeter();
-        }
+        }*/
 
         private void UpdateChampMeter()
         {
@@ -488,6 +488,11 @@ namespace TootTallyTournamentHost
             }
         }
 
+        private readonly string[] _PERF_TO_STRING = { "X", "MEH", "OK" };
+        private readonly Vector2 _COMBO_TEXT_ROT = new Vector3(0, 0, -40f);
+        private readonly Vector2 _COMBO_TEXT_POS = new Vector3(15f, 15f, 0);
+        private readonly Vector2 _COMBO_TEXT_POS_OFFSET = new Vector3(0, -35f, 0);
+
         private void AnimateNoteEndEffect(int noteindex, int performance)
         {
             GameController.noteendeffect noteendeffect = _allNoteEndEffects[_noteParticlesIndex];
@@ -499,50 +504,23 @@ namespace TootTallyTournamentHost
             noteendeffect.combotext_obj.transform.localScale = Vector3.one;
             noteendeffect.drops_canvasg.alpha = 0.85f;
             noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
+            noteendeffect.burst_img.color = noteendeffect.combotext_txt_front.color = performance == 0 || !_releaseBetweenNotes ? Color.red : Color.white;
+
             if (performance > 3)
             {
+                noteendeffect.combotext_rect.localEulerAngles = _COMBO_TEXT_ROT;
+                noteendeffect.combotext_rect.anchoredPosition3D = _COMBO_TEXT_POS;
+                noteendeffect.combotext_txt_shadow.text = noteendeffect.combotext_txt_front.text = _multiplier.ToString() + "x";
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[1];
                 noteendeffect.burst_canvasg.alpha = 0.7f;
             }
             else
             {
+                noteendeffect.combotext_rect.localEulerAngles = -_COMBO_TEXT_ROT;
+                noteendeffect.combotext_rect.anchoredPosition3D = _COMBO_TEXT_POS - _COMBO_TEXT_POS_OFFSET;
+                noteendeffect.combotext_txt_shadow.text = noteendeffect.combotext_txt_front.text = _PERF_TO_STRING[performance];
                 noteendeffect.burst_img.sprite = _gcInstance.noteparticle_images[0];
                 noteendeffect.burst_canvasg.alpha = 0.4f;
-            }
-            if (_multiplier > 0)
-            {
-                noteendeffect.burst_img.color = Color.white;
-                noteendeffect.combotext_txt_shadow.text = _multiplier.ToString() + "x";
-                noteendeffect.combotext_txt_front.color = Color.white;
-                noteendeffect.combotext_txt_front.text = _multiplier.ToString() + "x";
-                noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, 15f, 0f);
-                noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, -40f);
-            }
-            else
-            {
-                if (performance == 0)
-                {
-                    noteendeffect.burst_img.color = Color.red;
-                    noteendeffect.combotext_txt_shadow.text = "x";
-                    noteendeffect.combotext_txt_front.color = Color.red;
-                    noteendeffect.combotext_txt_front.text = "x";
-                }
-                else if (performance == 1)
-                {
-                    noteendeffect.burst_img.color = Color.white;
-                    noteendeffect.combotext_txt_shadow.text = "MEH";
-                    noteendeffect.combotext_txt_front.color = Color.white;
-                    noteendeffect.combotext_txt_front.text = "MEH";
-                }
-                else if (performance == 2)
-                {
-                    noteendeffect.burst_img.color = Color.white;
-                    noteendeffect.combotext_txt_shadow.text = "OK";
-                    noteendeffect.combotext_txt_front.color = Color.white;
-                    noteendeffect.combotext_txt_front.text = "OK";
-                }
-                noteendeffect.combotext_rect.anchoredPosition3D = new Vector3(15f, -20f, 0f);
-                noteendeffect.combotext_rect.localEulerAngles = new Vector3(0f, 0f, 40f);
             }
             anim.StartAnimateOutAnimation(noteendeffect.burst_obj, noteendeffect.burst_canvasg.gameObject, noteendeffect.drops_obj, noteendeffect.drops_canvasg.gameObject, noteendeffect.combotext_obj, _multiplier);
             _noteParticlesIndex++;
