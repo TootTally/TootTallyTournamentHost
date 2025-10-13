@@ -4,6 +4,7 @@ using System.Linq;
 using TootTallyCore.Graphics;
 using TootTallyCore.Graphics.Animations;
 using TootTallyCore.Utils.Helpers;
+using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
@@ -28,6 +29,7 @@ namespace TootTallyTournamentHost
         private GameObject _noteParticles;
         private GameObject _UIHolder;
         private GameObject _champObject;
+        private TournamentHostTimeElapse _timeElapsedController;
         private bool _hasSentSecondFlag, _hasSentFirstFlag;
         private int _id;
 
@@ -63,6 +65,8 @@ namespace TootTallyTournamentHost
 
             InitReplayVariables();
 
+            InitTimeElapsed();
+
             if (_isFiller)
                 HideEverything();
 
@@ -75,6 +79,7 @@ namespace TootTallyTournamentHost
             _UIHolder.SetActive(false);
             _pointer.SetActive(false);
             _champObject.SetActive(false);
+            _timeElapsedController.Hide();
             _gameCam.enabled = false;
             _bgCam.enabled = false;
         }
@@ -184,6 +189,12 @@ namespace TootTallyTournamentHost
             _flPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
             //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
         }
+
+        public void InitTimeElapsed()
+        {
+            _timeElapsedController = new TournamentHostTimeElapse(_gcInstance, _container.transform);
+        }
+
         #endregion
         private void OnSpectatingConnect(SpectatingSystem sender)
         {
@@ -212,9 +223,10 @@ namespace TootTallyTournamentHost
                 }
                 return;
             }
+            UpdateTimeCounter();
             _spectatingSystem?.UpdateStacks();
             HandlePitchShift();
-            PlaybackSpectatingData(_gcInstance);
+            PlaybackSpectatingData();
         }
 
         public void Disconnect() => _spectatingSystem?.Disconnect();
@@ -281,11 +293,11 @@ namespace TootTallyTournamentHost
             _noteData.Add(noteData);
         }
 
-        public void PlaybackSpectatingData(GameController __instance)
+        public void PlaybackSpectatingData()
         {
             if (_frameData == null || _tootData == null || !_initCompleted) return;
 
-            var currentMapPosition = __instance.musictrack.time;
+            var currentMapPosition = _gcInstance.musictrack.time;
 
             if (_frameData.Count > 0)
                 PlaybackFrameData(currentMapPosition);
@@ -427,6 +439,13 @@ namespace TootTallyTournamentHost
             }
         }
 
+        public void UpdateTimeCounter()
+        {
+            if (_timeElapsedController == null) return;
+            _timeElapsedController.UpdateTimeBar(_gcInstance.musictrack.time);
+            _timeElapsedController.UpdateTimeText(_gcInstance.timeelapsed_shad.text);
+        }
+
         private GameController.noteendeffect[] _allNoteEndEffects;
         private TournamentHostNoteEndAnimation[] _allNoteEndAnimations;
 
@@ -436,7 +455,6 @@ namespace TootTallyTournamentHost
         private bool _champMode;
         private bool _releaseBetweenNotes;
         private int _multiplier, _highestcombo;
-        private const int MAX_MULTIPLIER = 10;
 
         private float _noteScoreAverage;
 
