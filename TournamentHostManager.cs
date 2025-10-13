@@ -10,6 +10,7 @@ using TootTallyLeaderboard.Replays;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
+using UnityEngine.Scripting;
 using UnityEngine.UI;
 
 namespace TootTallyTournamentHost
@@ -19,10 +20,13 @@ namespace TootTallyTournamentHost
         private static Vector2 _screenSize;
         private static List<TournamentGameplayController> _tournamentControllerList = new List<TournamentGameplayController>();
 
+        private static int _oldChosenSoundset;
+
         [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
         [HarmonyPrefix]
         public static void OnGameControllerStartPrefix(GameController __instance)
         {
+            _oldChosenSoundset = GlobalVariables.chosen_soundset;
             GlobalVariables.chosen_soundset = 0;
         }
 
@@ -30,6 +34,7 @@ namespace TootTallyTournamentHost
         [HarmonyPostfix]
         public static void OnGameControllerStart(GameController __instance)
         {
+            GlobalVariables.chosen_soundset = _oldChosenSoundset;
             __instance.latency_offset = 0;
             SpectatingManager.StopAllSpectator();
             _tournamentControllerList?.Clear();
