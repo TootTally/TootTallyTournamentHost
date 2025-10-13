@@ -20,9 +20,17 @@ namespace TootTallyTournamentHost
         private static List<TournamentGameplayController> _tournamentControllerList = new List<TournamentGameplayController>();
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
+        [HarmonyPrefix]
+        public static void OnGameControllerStartPrefix(GameController __instance)
+        {
+            GlobalVariables.chosen_soundset = 0;
+        }
+
+        [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
         [HarmonyPostfix]
         public static void OnGameControllerStart(GameController __instance)
         {
+            __instance.latency_offset = 0;
             SpectatingManager.StopAllSpectator();
             _tournamentControllerList?.Clear();
             _screenSize = new Vector2(Screen.width, Screen.height);
@@ -67,7 +75,7 @@ namespace TootTallyTournamentHost
                         new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
                         canvasObject.transform,
                         id > 0 ? new SpectatingSystem(id, id.ToString()) : null,
-                        id < 0);
+                        id);
                     _tournamentControllerList.Add(tc);
                 }
             }

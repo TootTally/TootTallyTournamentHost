@@ -21,20 +21,22 @@ namespace TootTallyTournamentHost
         private Rect _bounds;
         private SpectatingSystem _spectatingSystem;
         private GameObject _pointer;
+        private Vector2 _pointerPos;
         
         private RectTransform _pointerRect;
         private CanvasGroup _pointerGlowCanvasGroup;
         private GameObject _noteParticles;
         private GameObject _UIHolder;
         private GameObject _champObject;
-        private static bool _hasSentSecondFlag, _hasSentFirstFlag;
+        private bool _hasSentSecondFlag, _hasSentFirstFlag;
+        private int _id;
 
-        public bool IsReady => _isFiller || (_frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f);
+        public bool IsReady => _isFiller || _id == 0 || (_frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f);
 
         private bool _isTooting, _isFiller, _initCompleted = false;
 
         #region inits
-        public void Initialize(GameController gcInstance, Camera gameCam, Camera bgCam, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem, bool isFiller = false)
+        public void Initialize(GameController gcInstance, Camera gameCam, Camera bgCam, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem, int id)
         {
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
@@ -43,7 +45,8 @@ namespace TootTallyTournamentHost
             _bounds = bounds;
             gameCam.pixelRect = bounds;
             bgCam.pixelRect = bounds;
-            _isFiller = isFiller;
+            _id = id;
+            _isFiller = id < 0;
             _spectatingSystem = spectatingSystem;
             if (_spectatingSystem != null)
                 _spectatingSystem.OnWebSocketOpenCallback = OnSpectatingConnect;
@@ -136,7 +139,9 @@ namespace TootTallyTournamentHost
         {
             _pointer = GameObject.Instantiate(_gcInstance.pointer, _container.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
+            _pointerPos = _pointerRect.anchoredPosition;
             _pointerGlowCanvasGroup = _pointer.transform.Find("note-dot-glow").GetComponent<CanvasGroup>();
+            //_pointerRect.pivot = new Vector2(.91f, .5f);
         }
 
         private void InitReplayVariables()
@@ -172,11 +177,11 @@ namespace TootTallyTournamentHost
             }
         }
 
-        private Vector2 _pointerPos;
+        private Vector2 _flPos;
 
         public void InitFlashLight()
         {
-            _pointerPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
+            _flPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
             //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
         }
         #endregion
@@ -190,7 +195,7 @@ namespace TootTallyTournamentHost
 
         public void UpdateFlashLight()
         {
-            _pointerPos.y = (_pointer.transform.localPosition.y + 215) / 430;
+            _flPos.y = (_pointer.transform.localPosition.y + 215) / 430;
             //TODO: Move texture position 
         }
 
@@ -343,8 +348,8 @@ namespace TootTallyTournamentHost
         private void SetCursorPosition(float newPosition)
         {
             if (!_initCompleted) return;
-
-            _pointerRect.anchoredPosition = new Vector2(_pointerRect.sizeDelta.x, newPosition);
+            _pointerPos.y = newPosition;
+            _pointerRect.anchoredPosition = _pointerPos;
         }
 
         private float _currentVolume;
@@ -437,10 +442,11 @@ namespace TootTallyTournamentHost
 
         private void GetScoreAverage()
         {
-            if (!_releaseBetweenNotes)
+            /*if (!_releaseBetweenNotes)
                 ApplyHealthChange(-15f);
             else
-                ApplyHealthChange(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));
+                ApplyHealthChange(Mathf.Clamp((_noteScoreAverage - 79f) * 0.2193f, -15f, 4.34f));*/
+            UpdateChampMeter();
             var textID = _noteScoreAverage > 95f ? 4 :
                 _noteScoreAverage > 88f ? 3 :
                 _noteScoreAverage > 79f ? 2 :
