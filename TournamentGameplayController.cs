@@ -192,7 +192,7 @@ namespace TootTallyTournamentHost
 
         public void InitTimeElapsed()
         {
-            _timeElapsedController = new TournamentHostTimeElapse(_gcInstance, _container.transform);
+            _timeElapsedController = new TournamentHostTimeElapse(_gcInstance, _UIHolder.transform);
         }
 
         #endregion
@@ -214,6 +214,7 @@ namespace TootTallyTournamentHost
         {
             if (!_initCompleted) return;
 
+            UpdateTimeCounter();
             if (_spectatingSystem == null || !_spectatingSystem.IsConnected)
             {
                 if (_isTooting)
@@ -223,7 +224,6 @@ namespace TootTallyTournamentHost
                 }
                 return;
             }
-            UpdateTimeCounter();
             _spectatingSystem?.UpdateStacks();
             HandlePitchShift();
             PlaybackSpectatingData();

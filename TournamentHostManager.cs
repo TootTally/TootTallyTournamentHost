@@ -1,17 +1,14 @@
 ﻿using HarmonyLib;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyGameModifiers;
 using TootTallyLeaderboard.Replays;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
-using UnityEngine.Scripting;
 using UnityEngine.UI;
+using UnityEngine.Video;
 
 namespace TootTallyTournamentHost
 {
@@ -50,7 +47,21 @@ namespace TootTallyTournamentHost
             gameplayCanvas.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x / horizontalScreenCount, sizeDelta.y);
             gameplayCanvas.GetComponent<RectTransform>().pivot = new Vector2(.5f * (horizontalScreenCount - (horizontalScreenCount - verticalScreenCount)), .5f);
             var botLeftCam = GameObject.Find("GameplayCam").GetComponent<Camera>();
-            var bgCam = __instance.bgcontroller.fullbgobject.GetComponent<Camera>();
+            var bgController = __instance.bgcontroller.fullbgobject.GetComponent<Camera>();
+            if (bgController.transform.GetChild(0).GetChild(0).TryGetComponent(out VideoPlayer vp))
+            {
+                var image = vp.gameObject.AddComponent<RawImage>();
+                //RenderTexture renderImage = new RenderTexture(Screen.width, Screen.height, -10);
+                //vp.targetTexture = renderImage;
+                vp.renderMode = VideoRenderMode.RenderTexture;
+                vp.targetTexture = vp.texture as RenderTexture;
+                image.texture = vp.targetTexture;
+            }
+
+            var bgCamera = new GameObject("bgCamera", typeof(Camera)).GetComponent<Camera>();
+            bgCamera.CopyFrom(bgController);
+            bgCamera.depth = -9f;
+            bgCamera.transform.localPosition = new Vector2(-4000, 4000);
 
             var canvasObject = new GameObject($"TournamentGameplayCanvas");
             var canvas = canvasObject.AddComponent<Canvas>();
@@ -76,7 +87,7 @@ namespace TootTallyTournamentHost
                     var tc = gameplayCanvas.AddComponent<TournamentGameplayController>();
                     tc.Initialize(__instance,
                         GameObject.Instantiate(botLeftCam),
-                        GameObject.Instantiate(bgCam),
+                        GameObject.Instantiate(bgCamera),
                         new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
                         canvasObject.transform,
                         id > 0 ? new SpectatingSystem(id, id.ToString()) : null,
@@ -84,6 +95,7 @@ namespace TootTallyTournamentHost
                     _tournamentControllerList.Add(tc);
                 }
             }
+            GameObject.DestroyImmediate(bgCamera);
             botLeftCam.enabled = false;
             __instance.pointer.transform.localScale = Vector2.zero;
             __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
