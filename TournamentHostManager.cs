@@ -48,7 +48,7 @@ namespace TootTallyTournamentHost
             gameplayCanvas.GetComponent<RectTransform>().pivot = new Vector2(.5f * (horizontalScreenCount - (horizontalScreenCount - verticalScreenCount)), .5f);
             var botLeftCam = GameObject.Find("GameplayCam").GetComponent<Camera>();
             var bgController = __instance.bgcontroller.fullbgobject.GetComponent<Camera>();
-            if (bgController.transform.GetChild(0).GetChild(0).TryGetComponent(out VideoPlayer vp))
+            /*if (bgController.transform.GetChild(0).GetChild(0).TryGetComponent(out VideoPlayer vp))
             {
                 var image = vp.gameObject.AddComponent<RawImage>();
                 //RenderTexture renderImage = new RenderTexture(Screen.width, Screen.height, -10);
@@ -56,8 +56,7 @@ namespace TootTallyTournamentHost
                 vp.renderMode = VideoRenderMode.RenderTexture;
                 vp.targetTexture = vp.texture as RenderTexture;
                 image.texture = vp.targetTexture;
-            }
-
+            }*/
             var bgCamera = new GameObject("bgCamera", typeof(Camera)).GetComponent<Camera>();
             bgCamera.CopyFrom(bgController);
             bgCamera.depth = -9f;
