@@ -157,7 +157,6 @@ namespace TootTallyTournamentHost
         {
             if (ShouldWaitForSync(out isWaitingForSync))
                 TootTallyNotifManager.DisplayNotif("Waiting to sync with host...");
-
             return !isWaitingForSync;
         }
 
@@ -170,6 +169,7 @@ namespace TootTallyTournamentHost
                 if (MultiplayerManager.IsPlayingMultiplayer)
                     MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
                 __instance.startSong(false);
+                _tournamentControllerList?.ForEach(tc => tc.StartVideoPlayer());
             }
         }
 

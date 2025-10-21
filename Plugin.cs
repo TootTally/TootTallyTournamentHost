@@ -63,8 +63,13 @@ namespace TootTallyTournamentHost
             string configPath = Path.Combine(Paths.BepInExRootPath, "config/");
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
             LayoutType = config.Bind("Global", nameof(LayoutType), TournamentHostManager.LayoutType.OneVsOne, "Type of Layout to display the users.");
-            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally");
-            VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically");
+            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally.");
+            VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically.");
+            EnableNoteParticles = config.Bind("Global", nameof(EnableNoteParticles), true, "Enables the note end effect.");
+            EnableChampMeter = config.Bind("Global", nameof(EnableChampMeter), true, "Enables the Champ Meter.");
+            EnableTimeElapsed = config.Bind("Global", nameof(EnableTimeElapsed), true, "Enable the time left for the song.");
+            EnableHighestCombo = config.Bind("Global", nameof(EnableHighestCombo), true, "Enable the highest combo counter.");
+            EnableUsername = config.Bind("Global", nameof(EnableUsername), true, "Enable the username display.");
             UserIDs = config.Bind("Global", "UserIDs", "0,0;0,0", "List of user IDs to spectate");
             settingPage = TootTallySettingsManager.AddNewPage(new TournamentHostSettingPage());
             _harmony.PatchAll(typeof(TournamentHostManager));
@@ -83,6 +88,11 @@ namespace TootTallyTournamentHost
         public ConfigEntry<LayoutType> LayoutType { get; set; }
         public ConfigEntry<float> HorizontalScreenCount { get; set; }
         public ConfigEntry<float> VerticalScreenCount { get; set; }
+        public ConfigEntry<bool> EnableNoteParticles { get; set; }
+        public ConfigEntry<bool> EnableChampMeter { get; set; }
+        public ConfigEntry<bool> EnableTimeElapsed { get; set; }
+        public ConfigEntry<bool> EnableHighestCombo { get; set; }
+        public ConfigEntry<bool> EnableUsername { get; set; }
         public ConfigEntry<string> UserIDs { get; set; }
     }
 }

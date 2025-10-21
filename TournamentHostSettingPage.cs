@@ -34,6 +34,12 @@ namespace TootTallyTournamentHost
             _layoutTypeDropdown = AddDropdown("Layout Type", Plugin.Instance.LayoutType);
             _horizontalScreenCountSlider = AddSlider("Horizontal Screen", 4, 10, Plugin.Instance.HorizontalScreenCount, true);
             _verticalScreenCountSlider = AddSlider("Vertical Screen", 4, 10, Plugin.Instance.VerticalScreenCount, true);
+            AddToggle("Enable Note Particles", Plugin.Instance.EnableNoteParticles);
+            AddToggle("Enable Champ Meter", Plugin.Instance.EnableChampMeter);
+            AddToggle("Enable Time Elapsed", Plugin.Instance.EnableTimeElapsed);
+            AddToggle("Enable Highest Combo", Plugin.Instance.EnableHighestCombo);
+            AddToggle("Enable Username", Plugin.Instance.EnableUsername);
+
             if (TootTallySettingsManager.isInitialized)
                 Initialize();
         }
