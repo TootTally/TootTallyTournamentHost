@@ -6,6 +6,7 @@ using TMPro;
 using TootTallyCore.APIServices;
 using TootTallyCore.Graphics;
 using TootTallyCore.Graphics.Animations;
+using TootTallyCore.Utils.Assets;
 using TootTallyCore.Utils.Helpers;
 using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyMultiplayer;
@@ -22,11 +23,20 @@ namespace TootTallyTournamentHost
 
         //Base Vars
         private GameController _gcInstance;
-        private GameObject _container, _UIHolder;
+        private GameObject _container, _UIHolder, _notesHolder;
+        private RectTransform _notesHolderRect;
         private Canvas _canvas;
         private Camera _gameCam, _bgCam;
         private VideoPlayer _videoPlayer, _savedVideoPlayer;
         private Rect _bounds;
+
+        //Notes Vars
+        private TournamentHostNoteStructure[] _notesArray;
+
+        //Game Modifiers Vars
+        private GameObject _gameModifierContainer;
+        private string _gameModifiers;
+        private Vector2 _flPos;
 
         //Pointer Vars
         private GameObject _pointer;
@@ -85,7 +95,7 @@ namespace TootTallyTournamentHost
         private bool _isTooting, _isFiller, _initCompleted = false;
 
         //CONST
-        private readonly string[] _PERF_TO_STRING = { "X", "MEH", "OK" };
+        private readonly string[] _PERF_TO_STRING = { "X", "MEH", "OK", "x", "x" };
         private readonly Vector2 _COMBO_TEXT_ROT = new Vector3(0, 0, -40f);
         private readonly Vector2 _COMBO_TEXT_POS = new Vector3(15f, 15f, 0);
         private readonly Vector2 _COMBO_TEXT_POS_OFFSET = new Vector3(0, -35f, 0);
@@ -109,6 +119,10 @@ namespace TootTallyTournamentHost
             InitContainer(canvasTransform);
 
             InitUIHolder();
+
+            InitNoteHolder();
+
+            InitNotes();
 
             if (Plugin.Instance.EnableNoteParticles.Value)
                 InitNoteParticles();
@@ -146,7 +160,7 @@ namespace TootTallyTournamentHost
             _champObject?.SetActive(false);
             _timeElapsedController?.Hide();
             _highestComboController?.Hide();
-            _userName.gameObject.SetActive(false);
+            _userName?.gameObject.SetActive(false);
             _gameCam.enabled = false;
             _bgCam.enabled = false;
         }
@@ -178,6 +192,16 @@ namespace TootTallyTournamentHost
             RemovePercentCounterIfFound();
         }
 
+        private void InitNoteHolder()
+        {
+            _notesHolder = GameObject.Instantiate(_gcInstance.noteholder, _container.transform);
+            _notesHolderRect = _notesHolder.GetComponent<RectTransform>();
+        }
+
+        private void InitNotes()
+        {
+            _notesArray = new TournamentHostNoteStructure[_gcInstance.beatstoshow];
+        }
         private void RemovePercentCounterIfFound()
         {
             try
@@ -254,12 +278,73 @@ namespace TootTallyTournamentHost
             }
         }
 
-        private Vector2 _flPos;
+        public void InitModifiers()
+        {
+            _gameModifierContainer = new GameObject("GameModifierContainer", typeof(RectTransform));
+            _gameModifierContainer.transform.SetParent(_UIHolder.transform);
+            var rect = _gameModifierContainer.GetComponent<RectTransform>();
+            rect.pivot = rect.anchorMin = rect.anchorMax = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+            rect.anchoredPosition = Vector2.zero;
+            var layoutGroup = _gameModifierContainer.AddComponent<HorizontalLayoutGroup>();
+            layoutGroup.childAlignment = TextAnchor.MiddleLeft;
+            layoutGroup.childControlHeight = layoutGroup.childControlWidth =
+            layoutGroup.childForceExpandHeight = layoutGroup.childForceExpandWidth =
+            layoutGroup.childScaleHeight = layoutGroup.childScaleWidth = false;
+            layoutGroup.spacing = 16f;
+            layoutGroup.padding = new RectOffset(82, 0, 0, 32);
+
+            if (_gameModifiers == null || _gameModifiers == "") return;
+
+            foreach (string modifier in _gameModifiers.Split(','))
+                AddModifierIcon(modifier);
+
+            //Doing it this way to make sure the modifiers are always in the same order -_-
+            if (_gameModifiers.Contains("FL"))
+                InitFlashLight();
+            if (_gameModifiers.Contains("HD"))
+                InitHidden();
+            if (_gameModifiers.Contains("MR"))
+                InitMirror();
+            if (_gameModifiers.Contains("HC"))
+                InitHiddenCursor();
+        }
+
+        public void AddModifierIcon(string modifier)
+        {
+            if (_gameModifierContainer == null) return;
+            var iconHolder = new GameObject($"{modifier}IconHolder");
+            iconHolder.transform.SetParent(_gameModifierContainer.transform);
+            var iconHolderRect = iconHolder.AddComponent<RectTransform>();
+            iconHolderRect.anchorMin = iconHolderRect.anchorMax = iconHolderRect.pivot = Vector2.zero;
+            iconHolderRect.anchoredPosition = Vector2.zero;
+            iconHolderRect.sizeDelta = Vector2.one * 16f;
+            var icon = GameObjectFactory.CreateImageHolder(iconHolder.transform, Vector2.zero, Vector2.one * 64f, AssetManager.GetSprite($"{modifier}.png"), $"{modifier}Icon");
+            icon.GetComponent<Image>().color = new Color(1, 1, 1, .4f);
+            //var rect = icon.GetComponent<RectTransform>();
+            /*rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;
+            rect.anchoredPosition = Vector2.zero;*/
+        }
 
         public void InitFlashLight()
         {
             _flPos = new Vector2(.075f, (_pointer.transform.localPosition.y + 215) / 430);
             //TODO: Implement FL texture with mask to gamespace so it doesnt hide UI elements
+        }
+
+        public void InitHidden()
+        {
+
+        }
+
+        public void InitMirror()
+        {
+            _notesHolderRect.localScale = new Vector3(1, -1, 1);
+        }
+
+        public void InitHiddenCursor()
+        {
+            _pointer.SetActive(false);
         }
 
         public void InitTimeElapsed()
@@ -301,6 +386,7 @@ namespace TootTallyTournamentHost
         #endregion
         private void OnSpectatingConnect(SpectatingSystem sender)
         {
+            _spectatingSystem.OnSocketSongInfoReceived = OnSongInfoReceived;
             _spectatingSystem.OnSocketUserStateReceived = OnUserStateReceived;
             _spectatingSystem.OnSocketFrameDataReceived = OnFrameDataReceived;
             _spectatingSystem.OnSocketTootDataReceived = OnTootDataReceived;
@@ -375,6 +461,12 @@ namespace TootTallyTournamentHost
                 _currentNoteData.noteID = -1;
             }
             GetScoreAverage();
+        }
+
+        private void OnSongInfoReceived(SocketSongInfo songInfo)
+        {
+            _gameModifiers = songInfo.gamemodifiers;
+            InitModifiers();
         }
 
         private void OnUserStateReceived(SocketUserState stateData)
@@ -558,8 +650,7 @@ namespace TootTallyTournamentHost
                 _noteScoreAverage > 88f ? 3 :
                 _noteScoreAverage > 79f ? 2 :
                 _noteScoreAverage > 70f ? 1 : 0;
-            if (false)
-                AnimateNoteEndEffect(_gcInstance.currentnoteindex, textID);
+            AnimateNoteEndEffect(_gcInstance.currentnoteindex, textID);
             _highestComboController?.UpdateHighestCombo(_multiplier);
         }
 
@@ -584,15 +675,16 @@ namespace TootTallyTournamentHost
             TournamentHostNoteEndAnimation anim = _allNoteEndAnimations[_noteParticlesIndex];
             anim.CancelAllAnimations();
             noteendeffect.noteeffect_obj.SetActive(true);
-            if (_gcInstance.leveldata.Count >= noteindex)
+            if (_gcInstance.leveldata != null && _gcInstance.leveldata.Count >= noteindex)
                 noteendeffect.noteeffect_rect.anchoredPosition3D = new Vector3(0f, _gcInstance.leveldata[noteindex][4], 0f);
             noteendeffect.burst_obj.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
             noteendeffect.combotext_obj.transform.localScale = Vector3.one;
             noteendeffect.drops_canvasg.alpha = 0.85f;
             noteendeffect.drops_obj.transform.localScale = new Vector3(0.1f, 0.1f, 1f);
+
             noteendeffect.burst_img.color = noteendeffect.combotext_txt_front.color = performance == 0 || !_releaseBetweenNotes ? Color.red : Color.white;
 
-            if (performance > 3)
+            if (performance >= 3)
             {
                 noteendeffect.combotext_rect.localEulerAngles = _COMBO_TEXT_ROT;
                 noteendeffect.combotext_rect.anchoredPosition3D = _COMBO_TEXT_POS;
