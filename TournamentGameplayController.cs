@@ -265,6 +265,7 @@ namespace TootTallyTournamentHost
 
         private void InitPointer()
         {
+            var bar = GameObject.Instantiate(_gcInstance.leftbounds, _gameplayContainer.transform);
             _pointer = GameObject.Instantiate(_gcInstance.pointer, _gameplayContainer.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();
             _pointerPos = _pointerRect.anchoredPosition;
