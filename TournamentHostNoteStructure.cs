@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TootTallyCore.Graphics.Animations;
 using UnityEngine;
 
 namespace TootTallyTournamentHost
@@ -13,6 +14,7 @@ namespace TootTallyTournamentHost
         public NoteDesigner noteDesigner;
         public RectTransform noteRect, noteEndRect;
         public LineRenderer[] lineRenderers;
+        public TootTallyAnimation _animation;
 
 
         public TournamentHostNoteStructure(GameObject root)
@@ -29,9 +31,14 @@ namespace TootTallyTournamentHost
                 root.transform.GetChild(2).GetComponent<LineRenderer>(),
                 root.transform.GetChild(3).GetComponent<LineRenderer>(),
             };
+            lineRenderers[0].sortingOrder = -2;
+            lineRenderers[1].sortingOrder = -1;
         }
 
-        public void CancelLeanTweens() => LeanTween.cancel(root);
+        public void CancelAnimation() => _animation?.Dispose();
+
+        public void AnimateNoteOut() => _animation = TootTallyAnimationManager.AddNewScaleAnimation(root, new Vector3(0, 0, 1), .1f, new SecondDegreeDynamicsAnimation(1, 1, 1));
+
 
         public void SetColorScheme(float[] start, float[] end, bool flipScheme)
         {

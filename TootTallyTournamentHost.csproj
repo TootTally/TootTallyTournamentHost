@@ -44,6 +44,9 @@
 		<Reference Include="TootTallyGameModifiers">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyGameModifiers\TootTallyGameModifiers.dll</HintPath>
 		</Reference>
+		<Reference Include="TootTallyCustomCursor">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyCustomCursor\TootTallyCustomCursor.dll</HintPath>
+		</Reference>
 		<Reference Include="HighscoreAccuracy">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\emmett-HighscoreAccuracy\HighscoreAccuracy.dll</HintPath>
 		</Reference>

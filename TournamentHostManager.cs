@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TootTallyCore.Utils.TootTallyNotifs;
@@ -31,6 +32,7 @@ namespace TootTallyTournamentHost
         [HarmonyPostfix]
         public static void OnGameControllerStart(GameController __instance)
         {
+            _currentNoteIndex = __instance.beatstoshow;
             GlobalVariables.chosen_soundset = _oldChosenSoundset;
             __instance.latency_offset = 0;
             SpectatingManager.StopAllSpectator();
@@ -63,17 +65,18 @@ namespace TootTallyTournamentHost
             bgCamera.transform.localPosition = new Vector2(-4000, 4000);
 
             var canvasObject = new GameObject($"TournamentGameplayCanvas");
-            var canvas = canvasObject.AddComponent<Canvas>();
+            /*var canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceCamera;
 
             CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.scaleFactor = 2.4f / verticalScreenCount;
-            canvas.scaleFactor = 2.4f / verticalScreenCount;
+            canvas.scaleFactor = 2.4f / verticalScreenCount;*/
+            var scaleFactor = 2.4f / verticalScreenCount;
 
             var gridLayout = canvasObject.AddComponent<GridLayoutGroup>();
-            gridLayout.cellSize = new Vector2(horizontalRatio / canvas.scaleFactor, verticalRatio / canvas.scaleFactor);
+            gridLayout.cellSize = new Vector2(horizontalRatio / scaleFactor, verticalRatio / scaleFactor);
             gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
             //gridLayout.childAlignment = TextAnchor.LowerLeft;
 
@@ -98,6 +101,7 @@ namespace TootTallyTournamentHost
             botLeftCam.enabled = false;
             __instance.pointer.transform.localScale = Vector2.zero;
             __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
+            __instance.noteholder.SetActive(false);
         }
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.getScoreAverage))]
@@ -114,6 +118,36 @@ namespace TootTallyTournamentHost
         {
             //_tournamentControllerList.ForEach(tc => tc.OnTallyScore());
             return false;
+        }
+
+        private static int _currentNoteIndex;
+
+        [HarmonyPatch(typeof(GameController), nameof(GameController.grabNoteRefs))]
+        [HarmonyPostfix]
+        public static void OnGetScoreAveragePrefix(GameController __instance, int indexinc)
+        {
+            if (indexinc == 0 || _tournamentControllerList == null || __instance.leveldata == null || _currentNoteIndex > __instance.leveldata.Count - 1) return;
+            var index = _currentNoteIndex++;
+            _tournamentControllerList.ForEach(tc => Plugin.Instance.StartCoroutine(WaitForSecondsCallback(.1f,
+                delegate
+                {
+                    tc.BuildSingleNote(index);
+                }))
+            );
+        }
+
+        [HarmonyPatch(typeof(GameController), nameof(GameController.pauseQuitLevel))]
+        [HarmonyPostfix]
+        public static void OnQuitDisconnect()
+        {
+            _tournamentControllerList?.ForEach(tc => tc.Disconnect());
+            _tournamentControllerList?.Clear();
+        }
+
+        public static IEnumerator<WaitForSeconds> WaitForSecondsCallback(float seconds, Action callback)
+        {
+            yield return new WaitForSeconds(seconds);
+            callback();
         }
 
         [HarmonyPatch(typeof(GameController), nameof(GameController.fixAudioMixerStuff))]
@@ -141,13 +175,6 @@ namespace TootTallyTournamentHost
             return false;
         }
 
-        [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Update))]
-        [HarmonyPrefix]
-        public static bool UpdateFlashlight()
-        {
-            _tournamentControllerList?.ForEach(tc => tc.UpdateFlashLight());
-            return false;
-        }
 
         public static bool isWaitingForSync;
 
