@@ -43,7 +43,6 @@ namespace TootTallyTournamentHost
         //Game Modifiers Vars
         private GameObject _gameModifierContainer;
         private string _gameModifiers;
-        private Vector2 _flPos;
         private GameObject _flObject;
 
         //Pointer Vars
@@ -97,7 +96,7 @@ namespace TootTallyTournamentHost
         private float _currentScore;
         private bool _champMode;
         private bool _releaseBetweenNotes;
-        private int _multiplier, _highestCombo;
+        private int _lastMultiplier, _multiplier, _highestCombo;
         private float _noteScoreAverage;
 
         //Miss Glow Vars
@@ -586,6 +585,7 @@ namespace TootTallyTournamentHost
                 _targetScore = _currentNoteData.totalScore;
                 _currentHealth = _currentNoteData.health;
                 _highestCombo = _currentNoteData.highestCombo;
+                _comboCounter = _currentNoteData.highestMultiplier;
                 _lastNoteID = _currentNoteData.noteID;
                 Plugin.LogInfo($"Last note id: {_lastNoteID}");
                 if (DiffCalcGlobals.selectedChart.indexToMaxScoreDict != null && DiffCalcGlobals.selectedChart.indexToMaxScoreDict.ContainsKey(_currentNoteData.noteID))
@@ -784,16 +784,19 @@ namespace TootTallyTournamentHost
         private void GetScoreAverage()
         {
             UpdateChampMeter();
+            if (_gameModifiers != null && _gameModifiers.Contains("EZ"))
+                _noteScoreAverage = Mathf.Clamp(_noteScoreAverage * 1.15f, 0, 100);
+
             var textID = _noteScoreAverage > 95f ? 4 :
                 _noteScoreAverage > 88f ? 3 :
                 _noteScoreAverage > 79f ? 2 :
                 _noteScoreAverage > 70f ? 1 : 0;
-            _comboCounter = textID >= 3 && _releaseBetweenNotes ? _comboCounter + 1 : 0;
             AnimateNoteEndEffect(_gcInstance.currentnoteindex, textID);
-            _highestComboController?.UpdateHighestCombo(_comboCounter);
-            if (_multiplier >= 5 && textID <= 2)
+            _highestComboController?.UpdateHighestCombo(_highestCombo);
+            if (_lastMultiplier >= 5 && _multiplier == 0)
                 AnimateMissGlow();
 
+            _lastMultiplier = _multiplier;
             _timeSinceLastScore = 0;
         }
 
