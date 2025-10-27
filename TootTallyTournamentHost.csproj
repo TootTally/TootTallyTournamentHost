@@ -41,6 +41,9 @@
 		<Reference Include="TootTallyLeaderboard">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyLeaderboard\TootTallyLeaderboard.dll</HintPath>
 		</Reference>
+		<Reference Include="TootTallyDiffCalcLibs">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyDiffCalcLibs\TootTallyDiffCalcLibs.dll</HintPath>
+		</Reference>
 		<Reference Include="TootTallyGameModifiers">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyGameModifiers\TootTallyGameModifiers.dll</HintPath>
 		</Reference>

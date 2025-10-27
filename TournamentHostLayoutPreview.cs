@@ -8,6 +8,7 @@ using TootTallyCore.Graphics;
 using TootTallyCore.Utils.TootTallyNotifs;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Experimental.AI;
 using UnityEngine.UI;
 
 namespace TootTallyTournamentHost
@@ -22,6 +23,8 @@ namespace TootTallyTournamentHost
         private List<GameObject> _itemList;
         private int[][] userIDsMatrix;
         private int[][] configUserIdsMatrix;
+        private TMP_Text[][] _usernameText;
+        private Coroutine _currentUsernameCoroutine;
 
         public TournamentHostLayoutPreview(Transform parent)
         {
@@ -53,9 +56,11 @@ namespace TootTallyTournamentHost
             _itemList.Clear();
             configUserIdsMatrix = TournamentHostManager.ConvertStringToMatrix(Plugin.Instance.UserIDs.Value);
             userIDsMatrix = new int[(int)verticalScreenCount][];
+            _usernameText = new TMP_Text[(int)verticalScreenCount][];
             for (int i = 0; i < verticalScreenCount; i++)
             {
                 userIDsMatrix[i] = new int[(int)horizontalScreenCount];
+                _usernameText[i] = new TMP_Text[(int)horizontalScreenCount];
                 for (int j = 0; j < horizontalScreenCount; j++)
                 {
                     if (configUserIdsMatrix.Length > i && configUserIdsMatrix[i].Length > j && configUserIdsMatrix[i][j] != 0)
@@ -74,11 +79,7 @@ namespace TootTallyTournamentHost
                 GameObject.DestroyImmediate(t);
             item.GetComponent<Image>().color = Color.gray;
             var input = GameObjectFactory.CreateInputField(item.transform, Vector2.zero, new Vector2(60, 60), "ScreenInputField", false);
-            if (userIDsMatrix.Length > verticalIndex && userIDsMatrix[verticalIndex].Length > horizontalIndex && userIDsMatrix[verticalIndex][horizontalIndex] != 0)
-                input.text = userIDsMatrix[verticalIndex][horizontalIndex].ToString();
-            else
-                input.text = $"{horizontalIndex} - {verticalIndex}";
-            input.onValueChanged.AddListener(value => OnInputFieldValueChange(value, verticalIndex, horizontalIndex));
+
             input.transform.Find("Image").GetComponent<RectTransform>().sizeDelta = new Vector2(60, 2);
             var inputRect = input.GetComponent<RectTransform>();
             inputRect.anchorMin = inputRect.anchorMax = Vector2.one * .5f;
@@ -90,6 +91,21 @@ namespace TootTallyTournamentHost
             labelRect.pivot = new Vector2(.5f, 0);
             labelRect.sizeDelta = new Vector2(200, 50);
             labelRect.GetComponent<TextMeshProUGUI>().alignment = TextAlignmentOptions.Bottom;
+
+            var usernameText = _usernameText[verticalIndex][horizontalIndex] = GameObjectFactory.CreateSingleText(item.transform, $"Username{verticalIndex}-{horizontalIndex}", "None");
+            usernameText.alignment = TextAlignmentOptions.Center;
+            usernameText.rectTransform.anchoredPosition = new Vector2(0, -80);
+            usernameText.rectTransform.anchorMin = usernameText.rectTransform.anchorMax = usernameText.rectTransform.pivot = Vector2.one * .5f;
+            usernameText.rectTransform.sizeDelta = new Vector2(200, 0);
+
+            if (userIDsMatrix.Length > verticalIndex && userIDsMatrix[verticalIndex].Length > horizontalIndex && userIDsMatrix[verticalIndex][horizontalIndex] != 0)
+            {
+                input.text = userIDsMatrix[verticalIndex][horizontalIndex].ToString();
+                SetUserName(userIDsMatrix[verticalIndex][horizontalIndex], verticalIndex, horizontalIndex);
+            }
+            else
+                input.text = $"{horizontalIndex} - {verticalIndex}";
+            input.onValueChanged.AddListener(value => OnInputFieldValueChange(value, verticalIndex, horizontalIndex));
             return item;
         }
 
@@ -100,10 +116,25 @@ namespace TootTallyTournamentHost
                 TootTallyNotifManager.DisplayNotif($"ID {horIndex}:{vertIndex} was not a number.");
                 return;
             }
-
             userIDsMatrix[vertIndex][horIndex] = id;
+            SetUserName(id, vertIndex, horIndex, true);
+
             Plugin.Instance.UserIDs.Value = TournamentHostManager.ConvertMatrixToString(userIDsMatrix);
             Plugin.LogInfo($"ID Config updated to {Plugin.Instance.UserIDs.Value}");
+        }
+
+        public void SetUserName(int id, int vertIndex, int horIndex, bool stopCoroutines = false)
+        {
+            if (_currentUsernameCoroutine != null && stopCoroutines) Plugin.Instance.StopCoroutine(_currentUsernameCoroutine);
+            if (_usernameText == null || _usernameText[vertIndex][horIndex] == null) return;
+            if (id == 0)
+                _usernameText[vertIndex][horIndex].text = "None";
+            else
+                _currentUsernameCoroutine = Plugin.Instance.StartCoroutine(TootTallyCore.APIServices.TootTallyAPIService.GetUserFromID(id, user =>
+                {
+                    _usernameText[vertIndex][horIndex].text = user.username;
+                    _currentUsernameCoroutine = null;
+                }));
         }
     }
 }

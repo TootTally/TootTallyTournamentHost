@@ -35,6 +35,9 @@ namespace TootTallyTournamentHost
             _horizontalScreenCountSlider = AddSlider("Horizontal Screen", 4, 10, Plugin.Instance.HorizontalScreenCount, true);
             _verticalScreenCountSlider = AddSlider("Vertical Screen", 4, 10, Plugin.Instance.VerticalScreenCount, true);
             AddToggle("Enable Note Particles", Plugin.Instance.EnableNoteParticles);
+            AddToggle("Enable Miss Glow", Plugin.Instance.EnableMissGlow);
+            AddToggle("Enable Score Text", Plugin.Instance.EnableScoreText);
+            AddToggle("Enable Score Percent Text", Plugin.Instance.EnableScorePercentText);
             AddToggle("Enable Champ Meter", Plugin.Instance.EnableChampMeter);
             AddToggle("Enable Time Elapsed", Plugin.Instance.EnableTimeElapsed);
             AddToggle("Enable Highest Combo", Plugin.Instance.EnableHighestCombo);

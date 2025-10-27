@@ -1,4 +1,5 @@
-﻿using System;
+﻿using HighscoreAccuracy;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -12,6 +13,7 @@ using TootTallyCore.Utils.Helpers;
 using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyCustomCursor;
+using TootTallyDiffCalcLibs;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
@@ -27,7 +29,7 @@ namespace TootTallyTournamentHost
 
         //Base Vars
         private GameController _gcInstance;
-        private GameObject _container, _UIHolder, _gameplayContainer, _notesHolder;
+        private GameObject _container, _UIHolder, _upperRightContainer, _gameplayContainer, _notesHolder;
         private RectTransform _notesHolderRect, _gameplayContainerRect;
         private Canvas _canvas, _containerCanvas;
         private Camera _gameCam, _bgCam;
@@ -81,7 +83,7 @@ namespace TootTallyTournamentHost
         private List<SocketFrameData> _frameData;
         private List<SocketTootData> _tootData;
         private List<SocketNoteData> _noteData;
-        private int _frameIndex, _tootIndex;
+        private int _frameIndex, _tootIndex, _lastNoteID;
         private SocketFrameData _lastFrame, _currentFrame;
         private SocketTootData _currentTootData;
         private SocketNoteData _currentNoteData;
@@ -91,10 +93,11 @@ namespace TootTallyTournamentHost
 
         //Scoring
         private Text _scoreTextShadow, _scoreText;
+        private Text _scorePercentTextShadow, _scorePercentText;
         private float _currentScore;
         private bool _champMode;
         private bool _releaseBetweenNotes;
-        private int _lastMult, _multiplier, _highestCombo;
+        private int _multiplier, _highestCombo;
         private float _noteScoreAverage;
 
         //Miss Glow Vars
@@ -136,6 +139,9 @@ namespace TootTallyTournamentHost
 
             if (Plugin.Instance.EnableScoreText.Value)
                 InitScoreText();
+
+            if (Plugin.Instance.EnableScorePercentText.Value)
+                InitScorePercentText();
 
             InitNoteHolder();
 
@@ -224,13 +230,25 @@ namespace TootTallyTournamentHost
             GameObjectFactory.DestroyFromParent(_UIHolder, "flag-PracticeMode");
             GameObjectFactory.DestroyFromParent(_UIHolder, "flag-TurboMode");
             GameObjectFactory.DestroyFromParent(_UIHolder, "time_elapsed_bar");
+            _upperRightContainer = _UIHolder.transform.GetChild(0).gameObject;
+            _upperRightContainer.transform.Find("ScoreShadow").gameObject.SetActive(false);
             RemovePercentCounterIfFound();
         }
 
         private void InitScoreText()
         {
-            _scoreTextShadow = _UIHolder.transform.Find("upper_right/ScoreShadow").GetComponent<Text>();
+            _scoreTextShadow = _upperRightContainer.transform.Find("ScoreShadow").GetComponent<Text>();
+            _scoreTextShadow.gameObject.SetActive(true);
             _scoreText = _scoreTextShadow.transform.GetChild(0).GetComponent<Text>();
+        }
+
+        private void InitScorePercentText()
+        {
+            _scorePercentTextShadow = GameObject.Instantiate(_upperRightContainer.transform.Find("ScoreShadow").GetComponent<Text>(), _upperRightContainer.transform);
+            _scorePercentTextShadow.gameObject.SetActive(true);
+            _scorePercentText = _scorePercentTextShadow.transform.GetChild(0).GetComponent<Text>();
+            _scorePercentTextShadow.rectTransform.anchoredPosition = new Vector2(0, _scoreTextShadow == null ? 0 : -60);
+            _scorePercentTextShadow.text = _scorePercentText.text = $"{100.FormatDecimals()}%";
         }
 
         private void InitNoteHolder()
@@ -251,13 +269,31 @@ namespace TootTallyTournamentHost
         }
         private void RemovePercentCounterIfFound()
         {
-            try
+            /*try
             {
                 DestroyImmediate(_UIHolder.transform.Find("upper_right/ScoreShadow(Clone)").GetComponent("PercentCounter"));
             }
             catch (Exception e)
             {
                 Plugin.LogInfo("PercentCounterNotFound");
+            }*/
+
+            try
+            {
+                GameObjectFactory.DestroyFromParent(_upperRightContainer, "ScoreShadow(Clone)");
+            }
+            catch (Exception e)
+            {
+                Plugin.LogInfo("Couldn't find first ScoreShadow(Clone) from UIHolder");
+            }
+
+            try
+            {
+                GameObjectFactory.DestroyFromParent(_upperRightContainer, "ScoreShadow(Clone)");
+            }
+            catch (Exception e)
+            {
+                Plugin.LogInfo("Couldn't find second ScoreShadow(Clone) from UIHolder");
             }
         }
 
@@ -303,6 +339,7 @@ namespace TootTallyTournamentHost
             _currentFrame = new SocketFrameData() { time = -1, noteHolder = 0, pointerPosition = 0 };
             _currentTootData = new SocketTootData() { time = -1, isTooting = false, noteHolder = 0 };
             _isTooting = false;
+            _currentPercent = _targetPercent = 100f;
         }
 
         private readonly Vector3 _MISS_GLOW_POS_OUT = new Vector3(-100, 0, 100);
@@ -540,7 +577,7 @@ namespace TootTallyTournamentHost
 
             if (_noteData != null && _noteData.Count > 0 && _noteData.Last().noteID >= _gcInstance.currentnoteindex)
                 _currentNoteData = _noteData.Find(x => x.noteID == _gcInstance.currentnoteindex);
-            if (_currentNoteData.noteID != -1)
+            if (_currentNoteData.noteID != _lastNoteID)
             {
                 _champMode = _currentNoteData.champMode;
                 _multiplier = _currentNoteData.multiplier;
@@ -549,7 +586,10 @@ namespace TootTallyTournamentHost
                 _targetScore = _currentNoteData.totalScore;
                 _currentHealth = _currentNoteData.health;
                 _highestCombo = _currentNoteData.highestCombo;
-                _currentNoteData.noteID = -1;
+                _lastNoteID = _currentNoteData.noteID;
+                Plugin.LogInfo($"Last note id: {_lastNoteID}");
+                if (DiffCalcGlobals.selectedChart.indexToMaxScoreDict != null && DiffCalcGlobals.selectedChart.indexToMaxScoreDict.ContainsKey(_currentNoteData.noteID))
+                    _targetPercent = (float)_targetScore / DiffCalcGlobals.selectedChart.indexToMaxScoreDict[_currentNoteData.noteID] * 100f;
             }
             GetScoreAverage();
         }
@@ -754,7 +794,6 @@ namespace TootTallyTournamentHost
             if (_multiplier >= 5 && textID <= 2)
                 AnimateMissGlow();
 
-            _lastMult = _multiplier;
             _timeSinceLastScore = 0;
         }
 
@@ -914,33 +953,43 @@ namespace TootTallyTournamentHost
             if (_noteParticlesIndex > 14)
                 _noteParticlesIndex = 0;
         }
-
+        private float _currentPercent;
+        private float _targetPercent;
         private int _targetScore;
         private float _updateTimer;
         private float _timeSinceLastScore;
 
         private void UpdateScoreTimers()
         {
-            if (_scoreText == null || _scoreTextShadow == null) return;
-
             _updateTimer += Time.unscaledDeltaTime;
             _timeSinceLastScore += Time.unscaledDeltaTime;
-            if (_updateTimer > .02f && _targetScore != _currentScore)
+            if (_updateTimer > .02f && (_targetScore != _currentScore || _targetPercent != _currentPercent))
             {
-                _currentScore = EaseTTValue(_currentScore, _targetScore - _currentScore, _timeSinceLastScore, 1.75f);
+                _currentScore = EaseValue(_currentScore, _targetScore - _currentScore, _timeSinceLastScore, 1.75f);
+                _currentPercent = EaseValue(_currentPercent, _targetPercent - _currentPercent, _timeSinceLastScore, 1.75f);
                 if (_currentScore < 0 || _targetScore < 0)
                     _currentScore = _targetScore = 0;
+                if (_currentPercent < 0 || _targetPercent < 0)
+                    _currentPercent = _targetPercent = 0;
                 UpdateScoreText();
+                UpdateScoreTextPercent();
                 _updateTimer = 0;
             }
         }
 
         private void UpdateScoreText()
         {
-            _scoreText.text = _scoreTextShadow.text = $"{(int)_currentScore}";
+            if (_scoreText == null || _scoreTextShadow == null) return;
+            _scoreText.text = _scoreTextShadow.text = $"{(int)_currentScore:n0}";
         }
 
-        private float EaseTTValue(float currentScore, float diff, float timeSum, float duration) =>
+        private void UpdateScoreTextPercent()
+        {
+            if (_scorePercentText == null || _scorePercentTextShadow == null) return;
+            _scorePercentText.text = _scorePercentTextShadow.text = $"{_currentPercent.FormatDecimals()}%";
+        }
+
+        private float EaseValue(float currentScore, float diff, float timeSum, float duration) =>
             Mathf.Max(diff * (-Mathf.Pow(2f, -10f * timeSum / duration) + 1f) * 1024f / 1023f + currentScore, 0f);
 
 

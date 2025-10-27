@@ -70,6 +70,7 @@ namespace TootTallyTournamentHost
             EnableNoteParticles = config.Bind("Global", nameof(EnableNoteParticles), true, "Enables the note end effect.");
             EnableMissGlow = config.Bind("Global", nameof(EnableMissGlow), true, "Enables the miss effect when breaking combo.");
             EnableScoreText = config.Bind("Global", nameof(EnableScoreText), true, "Enables score display on the top right.");
+            EnableScorePercentText = config.Bind("Global", nameof(EnableScorePercentText), true, "Enables score percent display on the top right.");
             EnableChampMeter = config.Bind("Global", nameof(EnableChampMeter), true, "Enables the Champ Meter.");
             EnableTimeElapsed = config.Bind("Global", nameof(EnableTimeElapsed), true, "Enable the time left for the song.");
             EnableHighestCombo = config.Bind("Global", nameof(EnableHighestCombo), true, "Enable the highest combo counter.");
@@ -95,6 +96,7 @@ namespace TootTallyTournamentHost
         public ConfigEntry<bool> EnableNoteParticles { get; set; }
         public ConfigEntry<bool> EnableMissGlow { get; set; }
         public ConfigEntry<bool> EnableScoreText { get; set; }
+        public ConfigEntry<bool> EnableScorePercentText { get; set; }
         public ConfigEntry<bool> EnableChampMeter { get; set; }
         public ConfigEntry<bool> EnableTimeElapsed { get; set; }
         public ConfigEntry<bool> EnableHighestCombo { get; set; }
