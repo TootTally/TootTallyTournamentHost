@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http.Headers;
 using TMPro;
@@ -89,8 +90,8 @@ namespace TootTallyTournamentHost
         private int _comboCounter;
 
         //Scoring
-        private int _currentScore; //Current means the one displayed. There's a smoothing from Current to Total.
-        private int _totalScore;
+        private Text _scoreTextShadow, _scoreText;
+        private float _currentScore;
         private bool _champMode;
         private bool _releaseBetweenNotes;
         private int _lastMult, _multiplier, _highestCombo;
@@ -133,6 +134,9 @@ namespace TootTallyTournamentHost
 
             InitUIHolder();
 
+            if (Plugin.Instance.EnableScoreText.Value)
+                InitScoreText();
+
             InitNoteHolder();
 
             InitNotes();
@@ -147,7 +151,8 @@ namespace TootTallyTournamentHost
 
             InitReplayVariables();
 
-            InitMissGlow();
+            if (Plugin.Instance.EnableMissGlow.Value)
+                InitMissGlow();
 
             if (Plugin.Instance.EnableTimeElapsed.Value)
                 InitTimeElapsed();
@@ -171,9 +176,6 @@ namespace TootTallyTournamentHost
         {
             _UIHolder?.SetActive(false);
             _gameplayContainer.SetActive(false);
-            //_noteParticles?.SetActive(false);
-            //_notesHolder?.SetActive(false);
-            //_pointer?.SetActive(false);
             _champObject?.SetActive(false);
             _timeElapsedController?.Hide();
             _highestComboController?.Hide();
@@ -225,6 +227,12 @@ namespace TootTallyTournamentHost
             RemovePercentCounterIfFound();
         }
 
+        private void InitScoreText()
+        {
+            _scoreTextShadow = _UIHolder.transform.Find("upper_right/ScoreShadow").GetComponent<Text>();
+            _scoreText = _scoreTextShadow.transform.GetChild(0).GetComponent<Text>();
+        }
+
         private void InitNoteHolder()
         {
             _noteCount = TrombLoader.Plugin.Instance.beatsToShow.Value;
@@ -260,7 +268,7 @@ namespace TootTallyTournamentHost
             _champGUIController = GameObject.Instantiate(_gcInstance.champcontroller, _container.transform);
             _champObject = _champGUIController.gameObject;
             _champObject.SetActive(true);
-            _champObject.transform.position = new Vector3(_champObject.transform.position.x, _champObject.transform.position.y, 0);
+            _champObject.transform.localPosition = new Vector3(_champObject.transform.localPosition.x, _champObject.transform.localPosition.y, 0);
             //_champPanel.transform.localScale = Vector3.one * .75f;
 
             for (int i = 0; i < _champGUIController.letters.Length; i++)
@@ -297,13 +305,14 @@ namespace TootTallyTournamentHost
             _isTooting = false;
         }
 
-        private readonly Vector3 _MISS_GLOW_POS_OUT = new Vector3(-200, 0, 100);
-        private readonly Vector3 _MISS_GLOW_POS_IN = new Vector3(100, 0, 100);
+        private readonly Vector3 _MISS_GLOW_POS_OUT = new Vector3(-100, 0, 100);
+        private readonly Vector3 _MISS_GLOW_POS_IN = new Vector3(50, 0, 100);
 
         private void InitMissGlow()
         {
             _missGlow = GameObject.Instantiate(_gcInstance.breathglow.gameObject, _UIHolder.transform);
             _missGlowCanvasGroup = _missGlow.AddComponent<CanvasGroup>();
+            _missGlowCanvasGroup.alpha = 0;
             _missGlowRect = _missGlow.GetComponent<RectTransform>();
             _missGlowRect.anchorMin = _missGlowRect.anchorMax = new Vector2(0, .5f);
             _missGlowRect.anchoredPosition3D = _MISS_GLOW_POS_OUT;
@@ -351,7 +360,7 @@ namespace TootTallyTournamentHost
 
             if (_gameModifiers == null || _gameModifiers == "") return;
 
-            foreach (string modifier in _gameModifiers.Split(','))
+            foreach (string modifier in _gameModifiers.Split(',').OrderBy(GetModifierOrder))
                 AddModifierIcon(modifier);
 
             //Doing it this way to make sure the modifiers are always in the same order -_-
@@ -364,6 +373,16 @@ namespace TootTallyTournamentHost
             if (_gameModifiers.Contains("HC"))
                 InitHiddenCursor();
         }
+
+        private static int GetModifierOrder(string modifier) =>
+            modifier switch
+            {
+                "FL" => 1,
+                "HD" => 2,
+                "MR" => 3,
+                "HC" => 4,
+                _ => int.MaxValue,
+            };
 
         public void AddModifierIcon(string modifier)
         {
@@ -424,7 +443,9 @@ namespace TootTallyTournamentHost
 
         public void InitHiddenCursor()
         {
-            _pointer.SetActive(false);
+            _pointer.GetComponent<Image>().enabled = false;
+            _pointer.transform.GetChild(0).gameObject.SetActive(false);
+            _pointer.transform.GetChild(1).gameObject.SetActive(false);
         }
 
         public void InitTimeElapsed()
@@ -487,15 +508,9 @@ namespace TootTallyTournamentHost
         {
             if (!_initCompleted || _isFiller) return;
 
-            /*if (_savedVideoPlayer != null && _savedVideoPlayer.clip != null)
-            {
-                _videoPlayer.url 
-                _videoPlayer.clip = _savedVideoPlayer.clip;
-                _savedVideoPlayer = null;
-            }*/
-
             UpdateTimeCounter();
             UpdateNotesPosition();
+            UpdateScoreTimers();
             _spectatingSystem?.UpdateStacks();
 
             if (_spectatingSystem == null || !_spectatingSystem.IsConnected)
@@ -523,7 +538,7 @@ namespace TootTallyTournamentHost
                 _hasSentSecondFlag = true;
             }
 
-            if (_noteData != null && _noteData.Count > 0 && _noteData.Last().noteID > _gcInstance.currentnoteindex)
+            if (_noteData != null && _noteData.Count > 0 && _noteData.Last().noteID >= _gcInstance.currentnoteindex)
                 _currentNoteData = _noteData.Find(x => x.noteID == _gcInstance.currentnoteindex);
             if (_currentNoteData.noteID != -1)
             {
@@ -531,7 +546,7 @@ namespace TootTallyTournamentHost
                 _multiplier = _currentNoteData.multiplier;
                 _noteScoreAverage = (float)_currentNoteData.noteScoreAverage;
                 _releaseBetweenNotes = _currentNoteData.releasedButtonBetweenNotes;
-                _totalScore = _currentNoteData.totalScore;
+                _targetScore = _currentNoteData.totalScore;
                 _currentHealth = _currentNoteData.health;
                 _highestCombo = _currentNoteData.highestCombo;
                 _currentNoteData.noteID = -1;
@@ -740,6 +755,7 @@ namespace TootTallyTournamentHost
                 AnimateMissGlow();
 
             _lastMult = _multiplier;
+            _timeSinceLastScore = 0;
         }
 
         private void UpdateChampMeter()
@@ -846,12 +862,16 @@ namespace TootTallyTournamentHost
 
         private void AnimateMissGlow()
         {
+            if (_missGlow == null || _missGlowCanvasGroup == null) return;
             _missPosAnimation?.Dispose();
             _missAlphaAnimation?.Dispose();
             _missGlowRect.anchoredPosition3D = _MISS_GLOW_POS_IN;
             _missGlowCanvasGroup.alpha = 0;
-            _missPosAnimation = TootTallyAnimationManager.AddNewPositionAnimation(_missGlow, _MISS_GLOW_POS_OUT, .75f, new SecondDegreeDynamicsAnimation(1.25f, 2f, 1f));
-            _missAlphaAnimation = TootTallyAnimationManager.AddNewAlphaAnimation(_missGlow, 1f, .05f, new SecondDegreeDynamicsAnimation(2.5f, 1f, 1f));
+            _missPosAnimation = TootTallyAnimationManager.AddNewPositionAnimation(_missGlow, _MISS_GLOW_POS_OUT, 1.25f, new SecondDegreeDynamicsAnimation(.6f, 1f, 1f));
+            _missAlphaAnimation = TootTallyAnimationManager.AddNewAlphaAnimation(_missGlow, 1f, .05f, new SecondDegreeDynamicsAnimation(2.5f, 1f, 1f), delegate
+            {
+                _missAlphaAnimation = TootTallyAnimationManager.AddNewAlphaAnimation(_missGlow, 0f, 1.3f, new SecondDegreeDynamicsAnimation(.45f, 1f, 1f));
+            });
         }
 
         private void AnimateNoteEndEffect(int noteindex, int performance)
@@ -894,5 +914,35 @@ namespace TootTallyTournamentHost
             if (_noteParticlesIndex > 14)
                 _noteParticlesIndex = 0;
         }
+
+        private int _targetScore;
+        private float _updateTimer;
+        private float _timeSinceLastScore;
+
+        private void UpdateScoreTimers()
+        {
+            if (_scoreText == null || _scoreTextShadow == null) return;
+
+            _updateTimer += Time.unscaledDeltaTime;
+            _timeSinceLastScore += Time.unscaledDeltaTime;
+            if (_updateTimer > .02f && _targetScore != _currentScore)
+            {
+                _currentScore = EaseTTValue(_currentScore, _targetScore - _currentScore, _timeSinceLastScore, 1.75f);
+                if (_currentScore < 0 || _targetScore < 0)
+                    _currentScore = _targetScore = 0;
+                UpdateScoreText();
+                _updateTimer = 0;
+            }
+        }
+
+        private void UpdateScoreText()
+        {
+            _scoreText.text = _scoreTextShadow.text = $"{(int)_currentScore}";
+        }
+
+        private float EaseTTValue(float currentScore, float diff, float timeSum, float duration) =>
+            Mathf.Max(diff * (-Mathf.Pow(2f, -10f * timeSum / duration) + 1f) * 1024f / 1023f + currentScore, 0f);
+
+
     }
 }
