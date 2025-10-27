@@ -5,6 +5,7 @@ using HarmonyLib;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using TootTallyCore.Utils.Assets;
 using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallyCore.Utils.TootTallyNotifs;
@@ -15,6 +16,7 @@ using TootTallySettings;
 using TootTallySpectator;
 using UnityEngine;
 using UnityEngine.UI;
+using static TootTallyTournamentHost.TournamentHostManager;
 
 namespace TootTallyTournamentHost
 {
@@ -59,203 +61,47 @@ namespace TootTallyTournamentHost
 
         public void LoadModule()
         {
+            AssetManager.LoadAssets(Path.Combine(Path.GetDirectoryName(Instance.Info.Location), "Assets"));
             string configPath = Path.Combine(Paths.BepInExRootPath, "config/");
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
-            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally");
-            VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically");
-            UserIDs = config.Bind("Global", "UserIDs", "70,70;70,70", "List of user IDs to spectate");
-            StartFade = config.Bind("Hidden", "StartFade", 3.5f, "Position at which the fade starts for hidden.");
-            EndFade = config.Bind("Hidden", "EndFade", -1.6f, "Position at which the fade ends for hidden.");
-            FLIntensity = config.Bind("Flashlight", "FLIntensity", .08f, "Intensity of flashlight: 0 is completely dark, 1 is disable flashlight.");
-
-            settingPage = TootTallySettingsManager.AddNewPage("TournamentHost", "Tournament Host", 40f, new Color(0, 0, 0, 0));
-            settingPage?.AddSlider("Hori Screens", 1, 10, HorizontalScreenCount, true);
-            settingPage?.AddSlider("Vert Screens", 1, 10, VerticalScreenCount, true);
-            settingPage?.AddLabel("UserIDs");
-            settingPage?.AddTextField("UserIDs", UserIDs.Value, false, value => UserIDs.Value = value);
-            settingPage?.AddSlider("Start Fadeout", -25, 25, 500, "HD StartFade", StartFade, false);
-            settingPage?.AddSlider("End Fadeout", -25, 25, 500, "HD EndFade", EndFade, false);
-            settingPage?.AddSlider("FL intensity", 0, 1, FLIntensity, false);
-            _harmony.PatchAll(typeof(TournamentHostPatches));
+            LayoutType = config.Bind("Global", nameof(LayoutType), TournamentHostManager.LayoutType.OneVsOne, "Type of Layout to display the users.");
+            HorizontalScreenCount = config.Bind("Global", "HorizontalScreenCount", 2f, "Amount of screen displayed horizontally.");
+            VerticalScreenCount = config.Bind("Global", "VerticalScreenCount", 2f, "Amount of screen displayed vertically.");
+            EnableNoteParticles = config.Bind("Global", nameof(EnableNoteParticles), true, "Enables the note end effect.");
+            EnableMissGlow = config.Bind("Global", nameof(EnableMissGlow), true, "Enables the miss effect when breaking combo.");
+            EnableScoreText = config.Bind("Global", nameof(EnableScoreText), true, "Enables score display on the top right.");
+            EnableScorePercentText = config.Bind("Global", nameof(EnableScorePercentText), true, "Enables score percent display on the top right.");
+            EnableChampMeter = config.Bind("Global", nameof(EnableChampMeter), true, "Enables the Champ Meter.");
+            EnableTimeElapsed = config.Bind("Global", nameof(EnableTimeElapsed), true, "Enable the time left for the song.");
+            EnableHighestCombo = config.Bind("Global", nameof(EnableHighestCombo), true, "Enable the highest combo counter.");
+            EnableUsername = config.Bind("Global", nameof(EnableUsername), true, "Enable the username display.");
+            UserIDs = config.Bind("Global", "UserIDs", "0,0;0,0", "List of user IDs to spectate");
+            settingPage = TootTallySettingsManager.AddNewPage(new TournamentHostSettingPage());
+            _harmony.PatchAll(typeof(TournamentHostManager));
             TootTallyGlobalVariables.isTournamentHosting = true;
             LogInfo($"Module loaded!");
         }
 
         public void UnloadModule()
         {
+            TootTallyGlobalVariables.isTournamentHosting = false;
             _harmony.UnpatchSelf();
             settingPage.Remove();
             TootTallyGlobalVariables.isTournamentHosting = false;
             LogInfo($"Module unloaded!");
         }
 
-        public static class TournamentHostPatches
-        {
-            private static Vector2 _screenSize;
-            private static List<TournamentGameplayController> _tournamentControllerList;
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
-            [HarmonyPostfix]
-            public static void OnGameControllerStart(GameController __instance)
-            {
-                SpectatingManager.StopAllSpectator();
-                _tournamentControllerList = new List<TournamentGameplayController>();
-                _screenSize = new Vector2(Screen.width, Screen.height);
-                float horizontalScreenCount = (int)Instance.HorizontalScreenCount.Value;
-                float horizontalRatio = _screenSize.x / horizontalScreenCount;
-                float verticalScreenCount = (int)Instance.VerticalScreenCount.Value;
-                float verticalRatio = _screenSize.y / verticalScreenCount;
-                var gameplayCanvas = GameObject.Find("GameplayCanvas");
-                gameplayCanvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
-                var sizeDelta = gameplayCanvas.GetComponent<RectTransform>().sizeDelta;
-                gameplayCanvas.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x / horizontalScreenCount, sizeDelta.y);
-                gameplayCanvas.GetComponent<RectTransform>().pivot = new Vector2(.5f * (horizontalScreenCount - (horizontalScreenCount - verticalScreenCount)), .5f);
-                var botLeftCam = GameObject.Find("GameplayCam").GetComponent<Camera>();
-
-                var canvasObject = new GameObject($"TournamentGameplayCanvas");
-                var canvas = canvasObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceCamera;
-
-                CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-                scaler.referenceResolution = new Vector2(1920, 1080);
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.scaleFactor = 2.4f / verticalScreenCount;
-                canvas.scaleFactor = 2.4f / verticalScreenCount;
-
-                var gridLayout = canvasObject.AddComponent<GridLayoutGroup>();
-                gridLayout.cellSize = new Vector2(horizontalRatio / canvas.scaleFactor, verticalRatio / canvas.scaleFactor);
-                gridLayout.startCorner = GridLayoutGroup.Corner.LowerLeft;
-
-                var IDs = Instance.UserIDs.Value.Split(';');
-                string[][] idList = new string[IDs.Length][]; //????
-                for (int i = 0; i < IDs.Length; i++)
-                    idList[i] = IDs[i].Split(',');
-
-                for (int y = 0; y < verticalScreenCount; y++)
-                {
-                    for (int x = 0; x < horizontalScreenCount; x++)
-                    {
-                        if (int.TryParse(idList[y][x], out int id) && id != 0)
-                        {
-                            var tc = gameplayCanvas.AddComponent<TournamentGameplayController>();
-                            tc.Initialize(__instance, GameObject.Instantiate(botLeftCam), new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio), canvasObject.transform, new SpectatingSystem(id, idList[y][x].ToString()));
-                            _tournamentControllerList.Add(tc);
-                        }
-                    }
-                }
-                LeanTween.init(LeanTween.maxTweens * (int)verticalScreenCount * (int)horizontalScreenCount);
-                botLeftCam.enabled = false;
-                __instance.pointer.transform.localScale = Vector2.zero;
-                __instance.ui_score_shadow.transform.parent.parent.transform.localScale = Vector3.zero;
-            }
-            [HarmonyPatch(typeof(GameController), nameof(GameController.Start))]
-            [HarmonyPatch(typeof(CharSelectController), nameof(CharSelectController.Start))]
-            [HarmonyPrefix]
-            public static void OnCharSelectEnter() => GlobalVariables.chosen_soundset = 0;
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.getScoreAverage))]
-            [HarmonyPrefix]
-            public static bool OnGetScoreAveragePrefix()
-            {
-                _tournamentControllerList.ForEach(tc => tc.OnGetScoreAverage());
-                return false;
-            }
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.tallyScore))]
-            [HarmonyPrefix]
-            public static bool OnTallyScorePrefix()
-            {
-                _tournamentControllerList.ForEach(tc => tc.OnTallyScore());
-                return false;
-            }
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.fixAudioMixerStuff))]
-            [HarmonyPrefix]
-            public static void CopyAllAudioClips()
-            {
-                _tournamentControllerList.ForEach(tc => tc.CopyAllAudioClips());
-            }
-
-            [HarmonyPatch(typeof(PlaytestAnims), nameof(PlaytestAnims.Start))]
-            [HarmonyPatch(typeof(PointSceneController), nameof(PointSceneController.Start))]
-            [HarmonyPostfix]
-            public static void DisconnectAllClients()
-            {
-                _tournamentControllerList.ForEach(tc => tc.Disconnect());
-                _tournamentControllerList.Clear();
-            }
-
-            [HarmonyPatch(typeof(GameModifiers.Hidden), nameof(GameModifiers.Hidden.Initialize))]
-            [HarmonyPrefix]
-            public static void InitHidden()
-            {
-                GameModifiers.Hidden.SetFadeOutValues(StartFade.Value, EndFade.Value);
-            }
-
-            [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Initialize))]
-            [HarmonyPrefix]
-            public static bool InitFlashlight()
-            {
-                _tournamentControllerList.ForEach(tc => tc.InitFlashLight());
-                return false;
-            }
-
-            [HarmonyPatch(typeof(GameModifiers.Flashlight), nameof(GameModifiers.Flashlight.Update))]
-            [HarmonyPrefix]
-            public static bool UpdateFlashlight()
-            {
-                _tournamentControllerList.ForEach(tc => tc.UpdateFlashLight());
-                return false;
-            }
-
-            private static bool _waitingToSync;
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.playsong))]
-            [HarmonyPrefix]
-            public static bool OverwriteStartSongIfSyncRequired(GameController __instance)
-            {
-                if (ShouldWaitForSync(out _waitingToSync))
-                    TootTallyNotifManager.DisplayNotif("Waiting to sync with host...");
-
-                return !_waitingToSync;
-            }
-
-            [HarmonyPatch(typeof(GameController), nameof(GameController.Update))]
-            [HarmonyPostfix]
-            public static void OnUpdatePlaybackSpectatingData(GameController __instance)
-            {
-                if (_waitingToSync && __instance.curtainc.doneanimating && !ShouldWaitForSync(out _waitingToSync))
-                {
-                    if (MultiplayerManager.IsPlayingMultiplayer)
-                        MultiplayerManager.GetMultiplayerController.SendQuickChat(42069);
-                    __instance.startSong(false);
-                }
-            }
-
-            [HarmonyPatch(typeof(MultiplayerSystem), nameof(MultiplayerSystem.SendUpdateScore))]
-            [HarmonyPrefix]
-            public static bool OnUpdatePlaybackSpectatingData() => false;
-
-            [HarmonyPatch(typeof(ReplaySystemManager), nameof(ReplaySystemManager.ShouldSubmitReplay))]
-            [HarmonyPrefix]
-            public static void OverwriteShouldSubmitReplay(ref bool __result)
-            {
-                __result = false;
-            }
-
-            private static bool ShouldWaitForSync(out bool waitForSync)
-            {
-                waitForSync = true;
-                if (!_tournamentControllerList.Any(x => !x.IsReady))
-                    waitForSync = false;
-                if (Input.GetKey(KeyCode.Space))
-                    waitForSync = false;
-                return waitForSync;
-            }
-        }
-
+        public ConfigEntry<LayoutType> LayoutType { get; set; }
         public ConfigEntry<float> HorizontalScreenCount { get; set; }
         public ConfigEntry<float> VerticalScreenCount { get; set; }
+        public ConfigEntry<bool> EnableNoteParticles { get; set; }
+        public ConfigEntry<bool> EnableMissGlow { get; set; }
+        public ConfigEntry<bool> EnableScoreText { get; set; }
+        public ConfigEntry<bool> EnableScorePercentText { get; set; }
+        public ConfigEntry<bool> EnableChampMeter { get; set; }
+        public ConfigEntry<bool> EnableTimeElapsed { get; set; }
+        public ConfigEntry<bool> EnableHighestCombo { get; set; }
+        public ConfigEntry<bool> EnableUsername { get; set; }
         public ConfigEntry<string> UserIDs { get; set; }
         public static ConfigEntry<float> StartFade, EndFade;
         public static ConfigEntry<float> FLIntensity;

@@ -4,7 +4,7 @@
 		<TargetFramework>net48</TargetFramework>
 		<AssemblyName>TootTallyTournamentHost</AssemblyName>
 		<Description>Tournament host client for TootTally</Description>
-		<Version>1.0.6</Version>
+		<Version>2.0.0</Version>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<TromboneChampDir>E:\SteamLibrary\steamapps\common\TromboneChamp</TromboneChampDir>
@@ -41,8 +41,14 @@
 		<Reference Include="TootTallyLeaderboard">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyLeaderboard\TootTallyLeaderboard.dll</HintPath>
 		</Reference>
+		<Reference Include="TootTallyDiffCalcLibs">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyDiffCalcLibs\TootTallyDiffCalcLibs.dll</HintPath>
+		</Reference>
 		<Reference Include="TootTallyGameModifiers">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyGameModifiers\TootTallyGameModifiers.dll</HintPath>
+		</Reference>
+		<Reference Include="TootTallyCustomCursor">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyCustomCursor\TootTallyCustomCursor.dll</HintPath>
 		</Reference>
 		<Reference Include="HighscoreAccuracy">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\emmett-HighscoreAccuracy\HighscoreAccuracy.dll</HintPath>
