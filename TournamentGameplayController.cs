@@ -9,6 +9,7 @@ using TootTallyCore.Graphics.Animations;
 using TootTallyCore.Utils.Assets;
 using TootTallyCore.Utils.Helpers;
 using TootTallyCore.Utils.TootTallyGlobals;
+using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyCustomCursor;
 using TootTallyMultiplayer;
 using TootTallySpectator;
@@ -92,8 +93,14 @@ namespace TootTallyTournamentHost
         private int _totalScore;
         private bool _champMode;
         private bool _releaseBetweenNotes;
-        private int _multiplier, _highestCombo;
+        private int _lastMult, _multiplier, _highestCombo;
         private float _noteScoreAverage;
+
+        //Miss Glow Vars
+        private GameObject _missGlow;
+        private RectTransform _missGlowRect;
+        private CanvasGroup _missGlowCanvasGroup;
+        private TootTallyAnimation _missPosAnimation, _missAlphaAnimation;
 
         //Others
         public bool IsReady => _isFiller || _id == 0 || (_frameData != null && _frameData.Count > 0 && _frameData.Last().time > 1f);
@@ -139,6 +146,8 @@ namespace TootTallyTournamentHost
             InitPointer();
 
             InitReplayVariables();
+
+            InitMissGlow();
 
             if (Plugin.Instance.EnableTimeElapsed.Value)
                 InitTimeElapsed();
@@ -288,6 +297,18 @@ namespace TootTallyTournamentHost
             _isTooting = false;
         }
 
+        private readonly Vector3 _MISS_GLOW_POS_OUT = new Vector3(-200, 0, 100);
+        private readonly Vector3 _MISS_GLOW_POS_IN = new Vector3(100, 0, 100);
+
+        private void InitMissGlow()
+        {
+            _missGlow = GameObject.Instantiate(_gcInstance.breathglow.gameObject, _UIHolder.transform);
+            _missGlowCanvasGroup = _missGlow.AddComponent<CanvasGroup>();
+            _missGlowRect = _missGlow.GetComponent<RectTransform>();
+            _missGlowRect.anchorMin = _missGlowRect.anchorMax = new Vector2(0, .5f);
+            _missGlowRect.anchoredPosition3D = _MISS_GLOW_POS_OUT;
+        }
+
         private void SetAllNoteEndEffects()
         {
             for (int i = 0; i < 15; i++)
@@ -367,21 +388,24 @@ namespace TootTallyTournamentHost
         {
             _flObject = GameObjectFactory.CreateImageHolder(_pointer.transform, Vector2.zero, Vector2.one * 500f, AssetManager.GetSprite("THFL.png"), "FL");
             var rect = _flObject.GetComponent<RectTransform>();
-            rect.anchoredPosition3D = Vector3.zero;
+            rect.anchoredPosition3D = new Vector3(0, 0, 10);
             var topBox = GameObject.Instantiate(_flObject, _flObject.transform);
             GameObject.DestroyImmediate(topBox.GetComponent<Image>());
             var img = topBox.AddComponent<Image>();
             img.color = Color.black;
             var tbRect = topBox.GetComponent<RectTransform>();
+            tbRect.anchoredPosition3D = new Vector3(0, -2, 10);
             tbRect.anchorMin = tbRect.anchorMax = new Vector2(.5f, 1);
             tbRect.pivot = new Vector2(.5f, 0);
             tbRect.sizeDelta = new Vector2(Screen.width * 1.5f, Screen.height * 1.5f);
             var botBox = GameObject.Instantiate(topBox, _flObject.transform);
             var bbRect = botBox.GetComponent<RectTransform>();
+            bbRect.anchoredPosition3D = new Vector3(0, 2, 10);
             bbRect.anchorMin = bbRect.anchorMax = new Vector2(.5f, 0);
             bbRect.pivot = new Vector2(.5f, 1);
             var rigBox = GameObject.Instantiate(topBox, _flObject.transform);
             var rbBox = rigBox.GetComponent<RectTransform>();
+            rbBox.anchoredPosition3D = new Vector3(-2, 0, 10);
             rbBox.anchorMin = rbBox.anchorMax = new Vector2(1, .5f);
             rbBox.pivot = new Vector2(0, .5f);
         }
@@ -472,6 +496,8 @@ namespace TootTallyTournamentHost
 
             UpdateTimeCounter();
             UpdateNotesPosition();
+            _spectatingSystem?.UpdateStacks();
+
             if (_spectatingSystem == null || !_spectatingSystem.IsConnected)
             {
                 if (_isTooting)
@@ -481,7 +507,6 @@ namespace TootTallyTournamentHost
                 }
                 return;
             }
-            _spectatingSystem?.UpdateStacks();
             HandlePitchShift();
             PlaybackSpectatingData();
         }
@@ -653,9 +678,9 @@ namespace TootTallyTournamentHost
 
         private void HandlePitchShift()
         {
-            if (_tClips == null || _currentNoteSound == null || TournamentHostManager.isWaitingForSync || !_initCompleted) return;
+            if (_tClips == null || _currentNoteSound == null || TournamentHostManager.isWaitingForSync || !_initCompleted || _gcInstance.level_finished) return;
 
-            var pointerPos = _pointer.GetComponent<RectTransform>().anchoredPosition.y;
+            var pointerPos = _pointerRect.anchoredPosition.y;
 
             if (!_isTooting)
             {
@@ -708,9 +733,13 @@ namespace TootTallyTournamentHost
                 _noteScoreAverage > 88f ? 3 :
                 _noteScoreAverage > 79f ? 2 :
                 _noteScoreAverage > 70f ? 1 : 0;
-            _comboCounter = textID >= 3 ? _comboCounter + 1 : 0;
+            _comboCounter = textID >= 3 && _releaseBetweenNotes ? _comboCounter + 1 : 0;
             AnimateNoteEndEffect(_gcInstance.currentnoteindex, textID);
             _highestComboController?.UpdateHighestCombo(_comboCounter);
+            if (_multiplier >= 5 && textID <= 2)
+                AnimateMissGlow();
+
+            _lastMult = _multiplier;
         }
 
         private void UpdateChampMeter()
@@ -813,6 +842,16 @@ namespace TootTallyTournamentHost
                     }
                 }
             }
+        }
+
+        private void AnimateMissGlow()
+        {
+            _missPosAnimation?.Dispose();
+            _missAlphaAnimation?.Dispose();
+            _missGlowRect.anchoredPosition3D = _MISS_GLOW_POS_IN;
+            _missGlowCanvasGroup.alpha = 0;
+            _missPosAnimation = TootTallyAnimationManager.AddNewPositionAnimation(_missGlow, _MISS_GLOW_POS_OUT, .75f, new SecondDegreeDynamicsAnimation(1.25f, 2f, 1f));
+            _missAlphaAnimation = TootTallyAnimationManager.AddNewAlphaAnimation(_missGlow, 1f, .05f, new SecondDegreeDynamicsAnimation(2.5f, 1f, 1f));
         }
 
         private void AnimateNoteEndEffect(int noteindex, int performance)
