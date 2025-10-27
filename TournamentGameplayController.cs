@@ -202,14 +202,7 @@ namespace TootTallyTournamentHost
             _containerCanvas = _container.AddComponent<Canvas>();
             _containerCanvas.worldCamera = _gameCam;
             _containerCanvas.renderMode = RenderMode.ScreenSpaceCamera;
-            /*CanvasScaler scaler = _containerCanvas.gameObject.AddComponent<CanvasScaler>();
-            scaler.referenceResolution = new Vector2(1920, 1080);
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.scaleFactor = 2f;
-            _containerCanvas.scaleFactor = 1f;*/
-
             _gameCam.transform.SetParent(_container.transform);
-            //var containerMask = _container.AddComponent<Mask>();
         }
 
         private void InitNoteParticles()
@@ -956,6 +949,7 @@ namespace TootTallyTournamentHost
             if (_noteParticlesIndex > 14)
                 _noteParticlesIndex = 0;
         }
+        
         private float _currentPercent;
         private float _targetPercent;
         private int _targetScore;

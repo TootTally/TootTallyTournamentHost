@@ -87,6 +87,7 @@ namespace TootTallyTournamentHost
             TootTallyGlobalVariables.isTournamentHosting = false;
             _harmony.UnpatchSelf();
             settingPage.Remove();
+            TootTallyGlobalVariables.isTournamentHosting = false;
             LogInfo($"Module unloaded!");
         }
 
@@ -102,5 +103,7 @@ namespace TootTallyTournamentHost
         public ConfigEntry<bool> EnableHighestCombo { get; set; }
         public ConfigEntry<bool> EnableUsername { get; set; }
         public ConfigEntry<string> UserIDs { get; set; }
+        public static ConfigEntry<float> StartFade, EndFade;
+        public static ConfigEntry<float> FLIntensity;
     }
 }
