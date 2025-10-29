@@ -14,6 +14,7 @@ using TootTallyCore.Utils.TootTallyGlobals;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyCustomCursor;
 using TootTallyDiffCalcLibs;
+using TootTallyGameModifiers;
 using TootTallyMultiplayer;
 using TootTallySpectator;
 using UnityEngine;
@@ -195,6 +196,7 @@ namespace TootTallyTournamentHost
             _container.transform.SetParent(canvasTransform);
             _container.AddComponent<RectTransform>();
             _gameplayContainer = GameObject.Instantiate(_container, _container.transform);
+            _gameplayContainer.name = $"GameSpace{_id}";
             _gameplayContainerRect = _gameplayContainer.GetComponent<RectTransform>();
             _gameplayContainerRect.anchorMin = _gameplayContainerRect.anchorMax = new Vector2(0, .5f);
             _gameplayContainerRect.sizeDelta = Vector2.zero;
@@ -393,13 +395,11 @@ namespace TootTallyTournamentHost
                 AddModifierIcon(modifier);
 
             //Doing it this way to make sure the modifiers are always in the same order -_-
-            if (_gameModifiers.Contains("FL"))
+            if (IsModifierActive("FL"))
                 InitFlashLight();
-            if (_gameModifiers.Contains("HD"))
-                InitHidden();
-            if (_gameModifiers.Contains("MR"))
+            if (IsModifierActive("MR"))
                 InitMirror();
-            if (_gameModifiers.Contains("HC"))
+            if (IsModifierActive("HC"))
                 InitHiddenCursor();
         }
 
@@ -456,11 +456,6 @@ namespace TootTallyTournamentHost
             rbBox.anchoredPosition3D = new Vector3(-2, 0, 10);
             rbBox.anchorMin = rbBox.anchorMax = new Vector2(1, .5f);
             rbBox.pivot = new Vector2(0, .5f);
-        }
-
-        public void InitHidden()
-        {
-
         }
 
         public void InitMirror()
@@ -580,7 +575,6 @@ namespace TootTallyTournamentHost
                 _highestCombo = _currentNoteData.highestCombo;
                 _comboCounter = _currentNoteData.highestMultiplier;
                 _lastNoteID = _currentNoteData.noteID;
-                Plugin.LogInfo($"Last note id: {_lastNoteID}");
                 if (DiffCalcGlobals.selectedChart.indexToMaxScoreDict != null && DiffCalcGlobals.selectedChart.indexToMaxScoreDict.ContainsKey(_currentNoteData.noteID))
                     _targetPercent = (float)_targetScore / DiffCalcGlobals.selectedChart.indexToMaxScoreDict[_currentNoteData.noteID] * 100f;
             }
@@ -772,6 +766,9 @@ namespace TootTallyTournamentHost
         {
             if (_notesHolder == null) return;
             _notesHolderRect.anchoredPosition = _gcInstance.noteholderr.anchoredPosition;
+            if (IsModifierActive("HD") && _notesArray != null)
+                for (int i = 0; i < _notesArray.Length; i++)
+                    _notesArray[i].UpdateHD();
         }
 
         private void GetScoreAverage()
@@ -893,6 +890,7 @@ namespace TootTallyTournamentHost
                     }
                 }
             }
+            if (IsModifierActive("HD")) currentNote.ResetHD();
         }
 
         private void AnimateMissGlow()
@@ -989,6 +987,6 @@ namespace TootTallyTournamentHost
         private float EaseValue(float currentScore, float diff, float timeSum, float duration) =>
             Mathf.Max(diff * (-Mathf.Pow(2f, -10f * timeSum / duration) + 1f) * 1024f / 1023f + currentScore, 0f);
 
-
+        private bool IsModifierActive(string modifierKey) => _gameModifiers != null && _gameModifiers.Contains(modifierKey);
     }
 }
