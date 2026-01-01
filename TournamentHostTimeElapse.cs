@@ -39,6 +39,7 @@ namespace TootTallyTournamentHost
 
             _barRect.localScale = new Vector3(timePercent, 1f, 1f);
             _barNubRect.anchoredPosition = new Vector2(timePercent * 120f - 60f, 50f);
+            _barRect.sizeDelta = new Vector2(120f, 1.7f);
             if (_barIndex < 3 && timePercent - (.25f * (_barIndex + 1)) >= 0)
             {
                 AnimateNextTick();

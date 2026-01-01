@@ -36,6 +36,7 @@ namespace TootTallyTournamentHost
         private Camera _gameCam, _bgCam;
         private VideoPlayer _videoPlayer, _savedVideoPlayer;
         private Rect _bounds;
+        private float _screenRatio;
 
         //Notes Vars
         private int _noteCount;
@@ -117,7 +118,7 @@ namespace TootTallyTournamentHost
         private readonly Vector2 _COMBO_TEXT_POS_OFFSET = new Vector3(0, -35f, 0);
 
         #region inits
-        public void Initialize(GameController gcInstance, Camera gameCam, Camera bgCam, Rect bounds, Transform canvasTransform, SpectatingSystem spectatingSystem, int id)
+        public void Initialize(GameController gcInstance, Camera gameCam, Camera bgCam, Rect bounds, Transform canvasTransform, float screenRatio, SpectatingSystem spectatingSystem, int id)
         {
             _hasSentSecondFlag = _hasSentFirstFlag = false;
             _gcInstance = gcInstance;
@@ -125,6 +126,7 @@ namespace TootTallyTournamentHost
             _gameCam.name = $"GameplayCam{id}";
             _bgCam = bgCam;
             _bounds = bounds;
+            _screenRatio = screenRatio;
             gameCam.pixelRect = bounds;
             bgCam.pixelRect = bounds;
             _id = id;
@@ -204,6 +206,7 @@ namespace TootTallyTournamentHost
             _containerCanvas = _container.AddComponent<Canvas>();
             _containerCanvas.worldCamera = _gameCam;
             _containerCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+            _containerCanvas.scaleFactor = _screenRatio;
             _gameCam.transform.SetParent(_container.transform);
         }
 
@@ -312,6 +315,7 @@ namespace TootTallyTournamentHost
 
         private void InitPointer()
         {
+            Plugin.LogInfo("THost Pointer init.");
             var bar = GameObject.Instantiate(_gcInstance.leftbounds, _gameplayContainer.transform);
             _pointer = GameObject.Instantiate(_gcInstance.pointer, _gameplayContainer.transform);
             _pointerRect = _pointer.GetComponent<RectTransform>();

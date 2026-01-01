@@ -43,6 +43,7 @@ namespace TootTallyTournamentHost
             float verticalScreenCount = (int)Plugin.Instance.VerticalScreenCount.Value;
             float verticalRatio = _screenSize.y / verticalScreenCount;
             var gameplayCanvas = GameObject.Find("GameplayCanvas");
+            Plugin.LogInfo($"Screen size: {_screenSize.x} x {_screenSize.y}");
 
             gameplayCanvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             var sizeDelta = gameplayCanvas.GetComponent<RectTransform>().sizeDelta;
@@ -92,6 +93,7 @@ namespace TootTallyTournamentHost
                         GameObject.Instantiate(bgCamera),
                         new Rect(x * horizontalRatio, y * verticalRatio, horizontalRatio, verticalRatio),
                         canvasObject.transform,
+                        scaleFactor,
                         id > 0 ? new SpectatingSystem(id, id.ToString()) : null,
                         id);
                     _tournamentControllerList.Add(tc);
