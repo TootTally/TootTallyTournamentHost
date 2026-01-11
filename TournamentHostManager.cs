@@ -1,15 +1,19 @@
 ﻿using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyGameModifiers;
 using TootTallyLeaderboard.Replays;
 using TootTallyMultiplayer;
+using TootTallyMultiplayer.MultiplayerPanels;
 using TootTallySpectator;
 using UnityEngine;
+using UnityEngine.Experimental.AI;
 using UnityEngine.UI;
 using UnityEngine.Video;
+using static TootTallyMultiplayer.APIService.MultSerializableClasses;
 
 namespace TootTallyTournamentHost
 {
@@ -223,6 +227,49 @@ namespace TootTallyTournamentHost
             return waitForSync;
         }
 
+        [HarmonyPatch(typeof(MultiplayerLobbyPanel), nameof(MultiplayerLobbyPanel.UpdateLobbyInfo))]
+        [HarmonyPostfix]
+        public static void OnRefreshLobbyInfoPostfix(List<MultiplayerUserInfo> users)
+        {
+            Plugin.LogInfo("Entered lobby info overwrite.");
+            if (Plugin.Instance.LayoutType.Value != LayoutType.Automatic || !MultiplayerManager.IsConnectedToMultiplayer)
+                return;
+            Plugin.LogInfo("Setting everything up.");
+            var playerList = users.Where(x => x.state != "Spectating" && x.id != TootTallyAccounts.TootTallyUser.userInfo.id).OrderBy(x => x.id).ToList();
+            var playerCount = playerList.Count;
+            Plugin.LogInfo($"Player Count is {playerCount}");
+            Vector2 dims = PlayerCountToDims(playerCount);
+            Plugin.LogInfo($"Dimensions set to X:{dims.x} by Y:{dims.y}");
+            Plugin.Instance.HorizontalScreenCount.Value = dims.x;
+            Plugin.Instance.VerticalScreenCount.Value = dims.y;
+            string userIDs = "";
+            if (playerCount != 2)
+            {
+                for (int i = 0; i < dims.y; i++)
+                {
+                    for (int j = 0; j < dims.x; j++)
+                    {
+                        if (i * dims.x + j < playerCount)
+                            userIDs += playerList[i * (int)dims.x + j].id;
+                        else
+                            userIDs += "0";
+                        if (j < dims.x - 1)
+                            userIDs += ",";
+                    }
+                    if (i < dims.y - 1)
+                        userIDs += ";";
+                }
+            }
+            else //Fuck that shit, specific layout for 1v1
+                userIDs = $"{playerList[0].id},0;{playerList[1].id},0";
+
+
+
+                Plugin.LogInfo($"UserIds set to {userIDs}");
+            Plugin.Instance.UserIDs.Value = userIDs;
+        }
+
+
         public static int[][] ConvertStringToMatrix(string userIDs)
         {
             var userColumns = userIDs.Split(';');
@@ -241,6 +288,7 @@ namespace TootTallyTournamentHost
             }
             return matrix;
         }
+
         public static string ConvertMatrixToString(int[][] userIDMatrix)
         {
             var userIDString = "";
@@ -259,7 +307,27 @@ namespace TootTallyTournamentHost
             TwoVsTwo,
             ThreeVsThree,
             FourVsFour,
+            Automatic,
             Custom,
         }
+
+        public static Vector2 PlayerCountToDims(int count) =>
+            count switch
+            {
+                1 or 2 or 3 or 4 => new Vector2(2, 2),
+                5 or 6 => new Vector2(3, 2),
+                7 or 8 => new Vector2(4, 2),
+                9 or 10 => new Vector2(5, 2),
+                11 or 12 => new Vector2(4, 3),
+                13 or 14 or 15 => new Vector2(5, 3),
+                16 => new Vector2(4, 4),
+                17 or 18 or 19 or 20 => new Vector2(5, 4),
+                21 or 22 or 23 or 24 or 25 => new Vector2(5, 5),
+                26 or 27 or 28 or 29 or 30 => new Vector2(6, 5),
+                31 or 32 or 33 or 34 or 35 or 36 => new Vector2(6, 6),
+                37 or 38 or 39 or 40 or 41 or 42 => new Vector2(7, 6),
+                43 or 44 or 45 or 46 or 47 or 48 or 49 => new Vector2(7, 7),
+                _ => new Vector2(10, 10)
+            };
     }
 }

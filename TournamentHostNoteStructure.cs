@@ -49,7 +49,7 @@ namespace TootTallyTournamentHost
         public void AnimateNoteOut() => _animation = TootTallyAnimationManager.AddNewScaleAnimation(root, new Vector3(0, 0, 1), .1f, new SecondDegreeDynamicsAnimation(1, 1, 1));
 
         public static float START_FADEOUT_POSX = 3.5f + 350f;
-        public static float END_FADEOUT_POSX = -1.6f + 350;
+        public static float END_FADEOUT_POSX = -1.6f + 350f;
 
         public void InitHD()
         {

@@ -32,6 +32,9 @@
 		<Reference Include="TootTallySettings">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallySettings\TootTallySettings.dll</HintPath>
 		</Reference>
+		<Reference Include="TootTallyAccounts">
+			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallyAccounts\TootTallyAccounts.dll</HintPath>
+		</Reference>
 		<Reference Include="TootTallySpectator">
 			<HintPath>$(TromboneTootDir)\BepInEx\plugins\TootTally-TootTallySpectator\TootTallySpectator.dll</HintPath>
 		</Reference>

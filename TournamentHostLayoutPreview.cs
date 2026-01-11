@@ -25,6 +25,7 @@ namespace TootTallyTournamentHost
         private int[][] configUserIdsMatrix;
         private TMP_Text[][] _usernameText;
         private Coroutine _currentUsernameCoroutine;
+        private bool _isEnabled;
 
         public TournamentHostLayoutPreview(Transform parent)
         {
@@ -43,6 +44,7 @@ namespace TootTallyTournamentHost
 
         public void UpdateLayout()
         {
+            if (!_isEnabled) return;
             float horizontalScreenCount = (int)Plugin.Instance.HorizontalScreenCount.Value;
             float horizontalRatio = Screen.width * LAYOUT_SIZE_MULT / horizontalScreenCount;
             float verticalScreenCount = (int)Plugin.Instance.VerticalScreenCount.Value;
@@ -135,6 +137,17 @@ namespace TootTallyTournamentHost
                     _usernameText[vertIndex][horIndex].text = user.username;
                     _currentUsernameCoroutine = null;
                 }));
+        }
+
+        public void Hide()
+        {
+            _isEnabled = false;
+            _layoutPanel.SetActive(false);
+        }
+        public void Show()
+        {
+            _isEnabled = true;
+            _layoutPanel.SetActive(true);
         }
     }
 }

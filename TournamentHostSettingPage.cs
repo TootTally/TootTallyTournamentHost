@@ -28,11 +28,11 @@ namespace TootTallyTournamentHost
         private TootTallySettingSlider _horizontalScreenCountSlider, _verticalScreenCountSlider;
         private TournamentHostLayoutPreview _layoutPreview;
 
-        public TournamentHostSettingPage() : base("Tournament Host", "Tournament Host", 40f, new Color(0,0,0,.1f), _pageBtnColors)
+        public TournamentHostSettingPage() : base("Tournament Host", "Tournament Host", 40f, new Color(0, 0, 0, .1f), _pageBtnColors)
         {
-            
+
             _layoutTypeDropdown = AddDropdown("Layout Type", Plugin.Instance.LayoutType);
-            _horizontalScreenCountSlider = AddSlider("Horizontal Screen", 1, 10, Plugin.Instance.HorizontalScreenCount, true);
+            _horizontalScreenCountSlider = AddSlider("Horizontal Screen", 2, 10, Plugin.Instance.HorizontalScreenCount, true);
             _verticalScreenCountSlider = AddSlider("Vertical Screen", 1, 10, Plugin.Instance.VerticalScreenCount, true);
             AddToggle("Enable Note Particles", Plugin.Instance.EnableNoteParticles);
             AddToggle("Enable Miss Glow", Plugin.Instance.EnableMissGlow);
@@ -55,7 +55,7 @@ namespace TootTallyTournamentHost
             _verticalScreenCountSlider.slider.onValueChanged.AddListener(_layoutPreview.UpdateLayout);
             _layoutTypeDropdown.dropdown.onValueChanged.AddListener(OnLayoutTypeChange);
             UpdateScreenCountSliderState();
-            
+
         }
 
         private void OnLayoutTypeChange(int value)
@@ -66,6 +66,7 @@ namespace TootTallyTournamentHost
                 LayoutType.TwoVsTwo => new Vector2(2, 2),
                 LayoutType.ThreeVsThree => new Vector2(3, 2),
                 LayoutType.FourVsFour => new Vector2(4, 2),
+                LayoutType.Automatic => new Vector2(1, 1),
                 _ => new Vector2(4, 4),
             };
             UpdateParams(screenCount);
@@ -76,8 +77,12 @@ namespace TootTallyTournamentHost
             Plugin.Instance.HorizontalScreenCount.Value = screenCount.x;
             Plugin.Instance.VerticalScreenCount.Value = screenCount.y;
 
-            UpdateScreenCountSliderState();
+            if (screenCount.x == 1 && screenCount.y == 1)
+                _layoutPreview.Hide();
+            else
+                _layoutPreview.Show();
             _layoutPreview.UpdateLayout();
+            UpdateScreenCountSliderState();
         }
 
         private void UpdateScreenCountSliderState()
